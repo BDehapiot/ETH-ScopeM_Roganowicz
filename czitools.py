@@ -143,7 +143,116 @@ def extract_metadata(czi_path):
 
 #%% Function: extract_data ----------------------------------------------------
 
-def extract_data(czi_path, rT='all', rZ='all', rC='all', zoom=1):
+# def extract_data(czi_path, rT='all', rZ='all', rC='all', zoom=1):
+
+#     """ 
+#     Extract data (images) from czi file.
+    
+#     Parameters
+#     ----------
+#     czi_path : str 
+#         Path to the czi file.
+        
+#     rT : str, int or tuple of int
+#         Requested timepoint(s).
+#         To select all timepoint(s) use 'all'.
+#         To select some timepoint(s) use tuple of int : expl (0, 1, 4).
+#         To select a specific timepoint use int : expl 0.
+        
+#     rZ : str, int or tuple of int
+#         Requested timepoint(s).
+#         Selection rules see rT.
+        
+#     rC : str, int or tuple of int
+#         Requested timepoint(s).
+#         Selection rules see rT.
+            
+#     zoom : float
+#         Downscaling factor for extracted images.
+#         From 0 to 1, 1 meaning no downscaling.
+            
+#     Returns
+#     -------  
+#     metadata : dict
+#         Reformated metadata.
+        
+#     data : ndarray or list of ndarray
+#         Images extracted as hyperstack(s).
+        
+#     """
+
+#     # Extract metadata
+#     metadata = extract_metadata(czi_path)
+    
+#     # Format request
+#     def format_request(dim, nDim, name):
+#         if dim == 'all':
+#             dim = np.arange(nDim)
+#         elif isinstance(dim, tuple):
+#             dim = np.array(dim)
+#         elif isinstance(dim, int):
+#             dim = np.array([dim]) 
+#         if np.any(dim > nDim - 1):
+#             print(f'Wrong {name} request')
+#             sys.exit()
+#         return dim 
+    
+#     rT = format_request(rT, metadata['nT'], 'timepoint(s)')
+#     rZ = format_request(rZ, metadata['nZ'], 'slice(s)')
+#     rC = format_request(rC, metadata['nC'], 'channel(s)')
+    
+#     # Determine extraction pattern
+#     tzc_pat = list(product(rT, rZ, rC))
+#     tzc_pat = np.array(tzc_pat)
+#     tzc_idx = np.empty_like(tzc_pat)
+#     for i in range(tzc_pat.shape[1]):
+#         _, inverse = np.unique(tzc_pat[:, i], return_inverse=True)
+#         tzc_idx[:, i] = inverse 
+        
+#     def _extract_data(scn):
+     
+#         if metadata['nS'] <= 1:
+#             x0 = 0; snX = metadata['nX']
+#             y0 = 0; snY = metadata['nY'] 
+#         else:
+#             x0 = metadata['sX0'][scn]; snX = metadata['snX'][scn]
+#             y0 = metadata['sY0'][scn]; snY = metadata['snY'][scn]
+            
+#         # Preallocate data
+#         data = np.zeros((
+#             rT.size, rZ.size, rC.size,
+#             int(snY * zoom), int(snX * zoom)
+#             ), dtype=int)
+        
+#         # Extract data
+#         with pyczi.open_czi(czi_path) as czidoc:     
+#             for pat, idx in zip(tzc_pat, tzc_idx):
+#                 data[idx[0], idx[1], idx[2], ...] = czidoc.read(
+#                     roi=(x0, y0, snX, snY), 
+#                     plane={'T': pat[0], 'Z': pat[1], 'C': pat[2]}, 
+#                     zoom=zoom,
+#                     ).squeeze()
+                
+#         return data
+    
+#     # Run _extract_data
+#     if metadata['nS'] > 1:
+#         outputs = Parallel(n_jobs=-1)(
+#             delayed(_extract_data)(scn) 
+#             for scn in range(metadata['nS'])
+#             )
+#     else:
+#         outputs = [_extract_data(scn)
+#             for scn in range(metadata['nS'])
+#             ]
+        
+#     # Extract outputs
+#     data = [data for data in outputs]
+#     if len(data) == 1: data = data[0]
+    
+#     return metadata, data
+
+def extract_data(czi_path, rS="all", rT='all', rZ='all', rC='all', zoom=1):
 
     """ 
     Extract data (images) from czi file.
@@ -153,19 +262,23 @@ def extract_data(czi_path, rT='all', rZ='all', rC='all', zoom=1):
     czi_path : str 
         Path to the czi file.
         
+    rS : str, int or tuple of int
+        Requested scene(s).
+        To select all scene(s) use 'all'.
+        To select some scene(s) use tuple of int : expl (0, 1, 4).
+        To select a specific scene use int : expl 0.
+        
     rT : str, int or tuple of int
         Requested timepoint(s).
-        To select all timepoint(s) use 'all'.
-        To select some timepoint(s) use tuple of int : expl (0, 1, 4).
-        To select a specific timepoint use int : expl 0.
+        Selection rules see rS.
         
     rZ : str, int or tuple of int
-        Requested timepoint(s).
-        Selection rules see rT.
+        Requested planes(s).
+        Selection rules see rS.
         
     rC : str, int or tuple of int
-        Requested timepoint(s).
-        Selection rules see rT.
+        Requested channel(s).
+        Selection rules see rS.
             
     zoom : float
         Downscaling factor for extracted images.
@@ -236,15 +349,17 @@ def extract_data(czi_path, rT='all', rZ='all', rC='all', zoom=1):
         return data
     
     # Run _extract_data
-    if metadata['nS'] > 1:
+    if metadata['nS'] > 1 and rS == "all":
         outputs = Parallel(n_jobs=-1)(
             delayed(_extract_data)(scn) 
             for scn in range(metadata['nS'])
             )
-    else:
+    elif isinstance(rS, tuple):
         outputs = [_extract_data(scn)
-            for scn in range(metadata['nS'])
+            for scn in rS
             ]
+    else:
+        outputs = _extract_data(rS)
         
     # Extract outputs
     data = [data for data in outputs]

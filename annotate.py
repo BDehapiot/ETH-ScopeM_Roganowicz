@@ -8,7 +8,7 @@ from bdmodel.annotate import Annotate
 #%% Inputs --------------------------------------------------------------------
 
 # Paths
-train_path = Path(Path.cwd(), "data", "train_tissue")
+train_path = Path(Path.cwd(), "data", "train")
 
 # Parameters
 randomize = True

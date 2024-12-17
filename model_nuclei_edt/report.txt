@@ -1,0 +1,17 @@
+date: 2024-12-17_11h08m37s
+save_name: model_nuclei_edt
+save_path: c:\users\bdeha\projects\eth-scopem_roganowicz\model_nuclei_edt
+msk_type: edt
+img_norm: global
+patch_size: 128
+patch_overlap: 0
+img/patches: 88
+augmentation: 500
+backbone: resnet18
+epochs: 200
+batch_size: 4
+validation_split: 0.2000
+learning_rate: 0.0005
+patience: 30
+best_epoch: 86
+best_val_loss: 0.1320
