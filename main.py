@@ -122,7 +122,7 @@ if __name__ == "__main__":
             mean_edt = np.mean(C1_edt[C2_lbl == lbl])
             area = props.area
             
-            if mean_int < 10000 or mean_edt > 20: # parameters
+            if mean_int < 30000 or mean_edt > 20: # parameters !!!
                 C2_msk[C2_lbl == lbl] = False
         
             else:
