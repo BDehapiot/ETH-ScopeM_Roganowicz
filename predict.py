@@ -18,7 +18,7 @@ img_name = "Plate_01-01.czi"
 
 # Parameters
 rS = tuple(np.arange(50, 150))  # number of extracted scene per czi file
-rf = 0.25 # rescaling factor
+rf = 0.25 # rescaling factor (0.25)
 size = int(512 * rf)
 
 #%% Execute -------------------------------------------------------------------
