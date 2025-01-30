@@ -12,6 +12,7 @@ from czitools import extract_metadata
 
 # bdtools
 from bdtools.patch import extract_patches
+from bdtools.mask import get_edt
 
 # bdmodel
 from bdmodel.predict import predict
@@ -85,7 +86,7 @@ def get_prd_mask(raw, prd):
     lmax_msk = np.zeros_like(raw, dtype=int)
     lmax_msk[(lmax[:, 0], lmax[:, 1])] = True
     lmax_lbl = label(lmax_msk)
-    prd_msk = watershed(-prd, lmax_lbl, mask=prd > 0.1)
+    prd_msk = watershed(-prd, lmax_lbl, mask=prd > 0.1) # Parameter
     return prd_msk
 
 def extract_report():
@@ -99,11 +100,20 @@ def extract_report():
             patches = extract_patches(img, size, 0)
             pIdx = np.random.randint(0, high=len(patches))
             patch = patches[pIdx]
+            
             name = f"{path.stem}_scene-{sIdxs[i]:04d}.tif"
-            msk_name = name.replace(".tif", "_mask.tif")
+            
             if name in raw_names:
+                
+                msk_name = name.replace(".tif", "_mask.tif")
+                edt_name = name.replace(".tif", "_mask_edt.tif")
+                edn_name = name.replace(".tif", "_mask_edn.tif")
+                
                 msk = io.imread(stock_path / msk_name)
                 msk = rescale_msk(msk)
+                edt = get_edt(msk)
+                edn = get_edt(msk, normalize="object")
+
                 if np.max(msk) > 0:
                     io.imsave(
                         Path(save_path, name), patch.astype("float32"), 
@@ -112,7 +122,15 @@ def extract_report():
                     io.imsave(
                         Path(save_path, msk_name), msk, 
                         check_contrast=False,
+                        ) 
+                    io.imsave(
+                        Path(save_path, edt_name), edt, 
+                        check_contrast=False,
                         )  
+                    io.imsave(
+                        Path(save_path, edn_name), edn, 
+                        check_contrast=False,
+                        ) 
 
 def predict_report():
     
@@ -157,6 +175,10 @@ if __name__ == "__main__":
     predict_report()
         
 #%%
+   
+    # msk = io.imread(save_path / "Plate_01-01_scene-0243_mask.tif")
+    # edt = get_edt(msk)
+    # edt_norm = get_edt(msk, normalize="object")
     
     # raw = raws[1]
     # prd = prds[1]
@@ -164,10 +186,11 @@ if __name__ == "__main__":
     # prd_msk = rescale_msk(prd_msk)
     # prd_msk = prd_msk.astype("uint8")
         
-    # # Display
+    # Display
     # import napari
     # viewer = napari.Viewer()
-    # viewer.add_image(raw)
+    # viewer.add_image(edt)
+    # viewer.add_image(edt_norm)
     # viewer.add_image(prd)
     # viewer.add_image(prd_msk)
      
