@@ -104,14 +104,15 @@ def extract_report():
             if name in raw_names:
                 msk = io.imread(stock_path / msk_name)
                 msk = rescale_msk(msk)
-                io.imsave(
-                    Path(save_path, name), patch.astype("float32"), 
-                    check_contrast=False,
-                    )  
-                io.imsave(
-                    Path(save_path, msk_name), msk, 
-                    check_contrast=False,
-                    )  
+                if np.max(msk) > 0:
+                    io.imsave(
+                        Path(save_path, name), patch.astype("float32"), 
+                        check_contrast=False,
+                        )  
+                    io.imsave(
+                        Path(save_path, msk_name), msk, 
+                        check_contrast=False,
+                        )  
 
 def predict_report():
     
