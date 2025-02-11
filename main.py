@@ -23,7 +23,7 @@ model_path = Path(Path.cwd(), "model_nuclei_edt")
 img_name = "Plate_01-01.czi"
 
 # Parameters
-rS = tuple(np.arange(500, 600))  # number of extracted scene per czi file
+rS = tuple(np.arange(400, 600))  # number of extracted scene per czi file
 # rS = 185
 rf = 0.25 # rescaling factor
 size = int(512 * rf)
@@ -160,18 +160,18 @@ if __name__ == "__main__":
         # Append
         displays.append(display)       
 
-    # -------------------------------------------------------------------------
+    # # -------------------------------------------------------------------------
 
-    # Display
-    viewer = napari.Viewer()
-    viewer.add_image(np.stack(C1s), blending="additive")
-    viewer.add_image(np.stack(C2s), blending="additive")
-    viewer.add_labels(np.stack(C1_lbls), blending="additive")
-    # viewer.add_image(np.stack(C1_edts), blending="additive")
-    # viewer.add_image(np.stack(C2_dogs), blending="additive")
-    # viewer.add_labels(np.stack(C2_lbls), blending="additive")
-    # viewer.add_image(np.stack(C2_dsps), blending="additive")
-    viewer.add_image(np.stack(displays), blending="additive")
+    # # Display
+    # viewer = napari.Viewer()
+    # viewer.add_image(np.stack(C1s), blending="additive")
+    # viewer.add_image(np.stack(C2s), blending="additive")
+    # viewer.add_labels(np.stack(C1_lbls), blending="additive")
+    # # viewer.add_image(np.stack(C1_edts), blending="additive")
+    # # viewer.add_image(np.stack(C2_dogs), blending="additive")
+    # # viewer.add_labels(np.stack(C2_lbls), blending="additive")
+    # # viewer.add_image(np.stack(C2_dsps), blending="additive")
+    # viewer.add_image(np.stack(displays), blending="additive")
 
     t1 = time.time()    
     print(f"execute : {t1 - t0:.5f}")
