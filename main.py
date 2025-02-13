@@ -16,8 +16,8 @@ display = False
 display_idx = 0 
 
 # Process parameters
-# rS = "all"
-# rS = tuple(np.arange(0, 100))
+rS = "all"
+# rS = tuple(np.arange(0, 3168, 20))
 batch_size = 500
 patch_overlap = 16
 C2_min_mean_int = 30000
@@ -33,6 +33,21 @@ czi_paths = list(data_path.rglob("*.czi"))
 
 def analyse(data_path):
         
+    def format_list(df, key):
+        lst = df[key].explode().tolist()
+        lst = [e for e in lst if not np.isnan(e)]
+        return lst
+    
+    def get_stats(data):
+        if data:
+            avg = np.nanmean(data)
+            std = np.nanstd(data)
+            sem = std  / np.sqrt(len(data))
+        else:
+            avg, std, sem = np.nan, np.nan, np.nan
+        return avg, std, sem
+            
+    
     def convert_mapping(mResults):
         
         plate_mapping = {
@@ -56,12 +71,12 @@ def analyse(data_path):
         mResults['plate'] = mResults['plate'].replace(plate_mapping)
         mResults['well' ] = mResults['well' ].replace(well_mapping)   
             
-    global mResults
+    global mResults, aResults
     
     # Initialize
-    csv_paths = list(data_path.rglob("*.csv"))
+    csv_paths = list(data_path.rglob("*_results.csv"))
     
-    # Load csv
+    # Load & merge results (mResults)
     mResults = []
     for csv_path in csv_paths:
         mResults.append(pd.read_csv(csv_path))
@@ -70,8 +85,61 @@ def analyse(data_path):
     mResults['C2_mean_int'] = mResults['C2_mean_int'].apply(ast.literal_eval)
     mResults['C2_mean_edt'] = mResults['C2_mean_edt'].apply(ast.literal_eval)
     
+    # Avg. results (aResults)
+    
+    aResults = {
+        "plate"           : [], "well"            : [],
+        "C1_count_cum"    : [], "C2_count_cum"    : [],
+        "C2C1_ratio_avg"  : [], "C2C1_ratio_std"  : [], "C2C1_ratio_sem"  : [],
+        "C2_areas_avg"    : [], "C2_areas_std"    : [], "C2_areas_sem"    : [],
+        "C2_mean_int_avg" : [], "C2_mean_int_std" : [], "C2_mean_int_sem" : [],
+        "C2_mean_edt_avg" : [], "C2_mean_edt_std" : [], "C2_mean_edt_sem" : [],
+        }
+
+    conds = mResults[['plate', 'well']].drop_duplicates().reset_index(drop=True)
+    for index, row in conds.iterrows():        
+        
+        df = mResults[
+            (mResults['plate'] == row['plate']) &
+            (mResults['well' ] == row['well' ])
+            ] 
+        
+        C2_areas = format_list(df, 'C2_areas')
+        C2_mean_int = format_list(df, 'C2_mean_int')
+        C2_mean_edt = format_list(df, 'C2_mean_edt')
+        C1_count_cum = np.sum(df["C1_count"])
+        C2_count_cum = np.sum(df["C2_count"])
+        C1C2_ratio_stats = get_stats(list(df["C2C1_ratio"]))
+        C2_areas_stats = get_stats(C2_areas)
+        C2_mean_int_stats = get_stats(C2_mean_int)
+        C2_mean_edt_stats = get_stats(C2_mean_edt)
+            
+        aResults['plate'          ].append(row['plate'])
+        aResults['well'           ].append(row['well' ])
+        aResults['C1_count_cum'   ].append(C1_count_cum)
+        aResults['C2_count_cum'   ].append(C2_count_cum)
+        aResults['C2C1_ratio_avg' ].append(C1C2_ratio_stats[0])
+        aResults['C2C1_ratio_std' ].append(C1C2_ratio_stats[1])
+        aResults['C2C1_ratio_sem' ].append(C1C2_ratio_stats[2])
+        aResults['C2_areas_avg'   ].append(C2_areas_stats[0])
+        aResults['C2_areas_std'   ].append(C2_areas_stats[1])
+        aResults['C2_areas_sem'   ].append(C2_areas_stats[2])
+        aResults['C2_mean_int_avg'].append(C2_mean_int_stats[0])
+        aResults['C2_mean_int_std'].append(C2_mean_int_stats[1])
+        aResults['C2_mean_int_sem'].append(C2_mean_int_stats[2])
+        aResults['C2_mean_edt_avg'].append(C2_mean_edt_stats[0])
+        aResults['C2_mean_edt_std'].append(C2_mean_edt_stats[1])
+        aResults['C2_mean_edt_sem'].append(C2_mean_edt_stats[2])
+
+    aResults = pd.DataFrame(aResults)    
+
     # Convert mapping
-    # convert_mapping(mResults)
+    convert_mapping(mResults)
+    convert_mapping(aResults)
+    
+    # Save 
+    mResults.to_csv(csv_paths[0].parent.parent / "mResults.csv", index=False)
+    aResults.to_csv(csv_paths[0].parent.parent / "aResults.csv", index=False)
 
 #%% Execute -------------------------------------------------------------------
 
@@ -92,50 +160,48 @@ if __name__ == "__main__":
     if display:
         display_images(czi_paths[display_idx])
         
-    # # Analyse
-    # analyse(data_path)
+    # Analyse
+    analyse(data_path)
     
-#%%
+#%% Plot ----------------------------------------------------------------------
+
+import matplotlib.pyplot as plt
+
+# Parameters
+data = "C2C1_ratio"
+
+# Initialize
+plates = np.unique(aResults["plate"])
+nPlates = len(plates)
+
+fig, axes = plt.subplots(
+    nPlates, 1, figsize=(8, 3 * nPlates))
+
+for ax, plate in zip(axes, plates):
     
-    # def format_list(df, key):
-    #     lst = df[key].explode().tolist()
-    #     lst = [e for e in lst if not np.isnan(e)]
-    #     return lst
-        
-    # cResults = {
-    #     "plate"           : [],
-    #     "well"            : [],
-    #     "C1_count"        : [],
-    #     "C2_count"        : [],
-    #     "C2C1_ratio"      : [],
-    #     "C2_areas_avg"    : [],
-    #     "C2_mean_int_avg" : [],
-    #     "C2_mean_edt_avg" : [],
-    #     }
+    # Initialize
+    df = aResults[aResults['plate'] == plate]
+    wells = df["well"]
+    avg = np.array(df[f"{data}_avg"])
+    sem = np.array(df[f"{data}_sem"])
+    x = np.arange(len(wells))
+    avg[np.isnan(avg)] = 0
 
-    # conds = mResults[['plate', 'well']].drop_duplicates().reset_index(drop=True)
-    # for index, row in conds.iterrows():        
-        
-    #     df = mResults[
-    #         (mResults['plate'] == row['plate']) &
-    #         (mResults['well' ] == row['well' ])
-    #         ] 
-        
-    #     C1_count = df["C1_count"].sum()
-    #     C2_count = df["C2_count"].sum()
-    #     C2C1_count = C2_count / C1_count
-    #     C2_areas = format_list(df, 'C2_areas')
-    #     C2_mean_int = format_list(df, 'C2_mean_int')
-    #     C2_mean_edt = format_list(df, 'C2_mean_edt')
-        
-    #     cResults['plate'          ].append(row['plate'])
-    #     cResults['well'           ].append(row['well' ])
-    #     cResults['C1_count'       ].append(C1_count)
-    #     cResults['C2_count'       ].append(C2_count)
-    #     cResults['C2C1_ratio'     ].append(C2C1_count)
-    #     cResults['C2_areas_avg'   ].append(np.mean(C2_areas))
-    #     cResults['C2_mean_int_avg'].append(np.mean(C2_mean_int))
-    #     cResults['C2_mean_edt_avg'].append(np.mean(C2_mean_edt))
+    # Plot
+    ax.bar(
+        x, avg, 
+        yerr=[np.zeros_like(sem), sem], capsize=5,
+        color="skyblue", alpha=0.7, label=data,
+        )
 
-    # cResults = pd.DataFrame(cResults)        
-        
+    # Formatting
+    ax.set_ylim(0, 0.006)
+    ax.set_xticks(x)
+    ax.set_xticklabels(wells, rotation=90)  # Rotate labels if many
+    ax.set_ylabel(data)
+    ax.set_title(plate)
+    ax.legend(loc="upper right")
+
+# Adjust layout
+plt.tight_layout()
+plt.show()

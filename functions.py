@@ -128,7 +128,7 @@ def process_images(
                 # Update result #1
                 result["C2_areas"].append(area.astype(int))
                 result["C2_mean_int"].append(mean_int.astype(int))
-                result["C2_mean_edt"].append(mean_edt.round(3))
+                result["C2_mean_edt"].append(mean_edt)
                 
                 # Draw object rectangles
                 rr, cc = rectangle_perimeter(
@@ -154,9 +154,13 @@ def process_images(
         # Update result #2
         C1_count = np.max(C1_lbl)
         C2_count = np.max(C2_lbl)
+        if C1_count == 0:
+            C1C2_ratio = np.nan
+        else:
+            C1C2_ratio = (C2_count / C1_count)
         result["C1_count"  ] = C1_count
         result["C2_count"  ] = C2_count
-        result["C2C1_ratio"] = (C2_count / C1_count).round(6)
+        result["C2C1_ratio"] = C1C2_ratio
                 
         # Merge display
         display += (C2_out * 128)
@@ -262,7 +266,7 @@ def process_images(
     results = pd.DataFrame(results)
     results = results[[
         "plate", "well", "position", 
-        "C1_count", "C2_count",
+        "C1_count", "C2_count", "C2C1_ratio",
         "C2_areas", "C2_mean_int", "C2_mean_edt",
         ]]
     results.to_csv(
