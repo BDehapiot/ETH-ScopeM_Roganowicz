@@ -10,7 +10,6 @@ import pandas as pd
 from skimage import io
 from pathlib import Path
 import concurrent.futures
-import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
 # czitools
@@ -40,17 +39,15 @@ from scipy.ndimage import distance_transform_edt
 preprocess = False
 process = False
 analyse = True
-plot = True
-display = False
-display_idx = 3
+display = True
+display_idx = 1
 
 # Process parameters
 rS = "all"
 # rS = tuple(np.arange(0, 3168, 10))
 batch_size = 500
 patch_overlap = 16
-C2_min_area = 64
-C2_min_mean_int = 15000
+C2_min_mean_int = 30000
 C2_min_mean_edt = 20
 
 #%% Initialize ----------------------------------------------------------------
@@ -132,18 +129,11 @@ def preprocess_images(
 
 def process_images(
         czi_path,
-        C2_min_area=32,
         C2_min_mean_int=30000,
         C2_min_mean_edt=20,
         ):
     
     # Nested function(s) ------------------------------------------------------          
-
-    def load_images(img_path):
-        C1 =  io.imread(str(img_path) + "_C1.tif")
-        C2 =  io.imread(str(img_path) + "_C2.tif")
-        prd = io.imread(str(img_path) + "_predictions.tif")
-        return C1, C2, prd
 
     def _process_images(i, C1, C2, prd):
         
@@ -152,7 +142,8 @@ def process_images(
         C2_dog_sigma1 = 1 
         C2_dog_sigma2 = 8
         C2_dog_thresh = 1
-
+        C2_min_size = 32
+        
         # Initialize
         well = metadata["scn_well"][i]
         position = metadata["scn_pos"][i]
@@ -176,14 +167,8 @@ def process_images(
         gbl2 = gaussian(C2, sigma=C2_dog_sigma2) # parameter
         C2_dog = (gbl1 - gbl2) / gbl2
         C2_msk = C2_dog > C2_dog_thresh # parameter
-        C2_msk = remove_small_objects(C2_msk, min_size=C2_min_area) # parameter
+        C2_msk = remove_small_objects(C2_msk, min_size=C2_min_size) # parameter
         C2_lbl = label(C2_msk)
-        C2_out = binary_dilation(C2_msk) ^ C2_msk
-        
-        # ///
-        C2_msk_valid = C2_msk.copy()        
-        C2_lbl_valid = C2_lbl.copy() 
-        # ///
         
         # Results
         result = {
@@ -205,9 +190,9 @@ def process_images(
             mean_int = np.mean(C2[C2_lbl == lbl])
             mean_edt = np.mean(C1_edt[C2_lbl == lbl])
             area = props.area
-
+            
             if mean_int < C2_min_mean_int or mean_edt > C2_min_mean_edt: # parameters !!!
-                C2_msk_valid[C2_lbl_valid == lbl] = False
+                C2_msk[C2_lbl == lbl] = False
         
             else:
                 
@@ -216,29 +201,30 @@ def process_images(
                 result["C2_mean_int"].append(mean_int.astype(int))
                 result["C2_mean_edt"].append(mean_edt)
                 
-                # Draw object rectangles (only valid objects)
+                # Draw object rectangles
                 rr, cc = rectangle_perimeter(
                     (y - 25, x - 25), extent=(50, 50), shape=display.shape)
                 display[rr, cc] = 255
                 
-            # Draw object texts
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(
-                display, f"{mean_int:.2e}", 
-                (x + 15, y - 16), # depend on resolution !!!
-                font, 0.5, 192, 1, cv2.LINE_AA
-                ) 
-            cv2.putText(
-                display, f"{area:.0f}", 
-                (x + 15, y), # depend on resolution !!!
-                font, 0.5, 192, 1, cv2.LINE_AA
-                ) 
+                # Draw object texts
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(
+                    display, f"{mean_int:.2e}", 
+                    (x + 30, y - 16), # depend on resolution !!!
+                    font, 0.5, 192, 1, cv2.LINE_AA
+                    ) 
+                cv2.putText(
+                    display, f"{area:.0f}", 
+                    (x + 30, y), # depend on resolution !!!
+                    font, 0.5, 192, 1, cv2.LINE_AA
+                    ) 
         
-        C2_lbl_valid = label(C2_msk_valid)
-
+        C2_lbl = label(C2_msk)
+        C2_out = binary_dilation(C2_msk) ^ C2_msk
+        
         # Update result #2
         C1_count = np.max(C1_lbl)
-        C2_count = np.max(C2_lbl_valid)
+        C2_count = np.max(C2_lbl)
         if C1_count == 0:
             C1C2_ratio = np.nan
         else:
@@ -269,7 +255,7 @@ def process_images(
             )
         io.imsave(
             exp_path / (img_name + "_C2_labels.tif"),
-            C2_lbl_valid.astype("uint16"), check_contrast=False
+            C2_lbl.astype("uint16"), check_contrast=False
             )
         
         # Save display
@@ -296,6 +282,12 @@ def process_images(
         return result
 
     # Execute -----------------------------------------------------------------
+       
+    def load_images(img_path):
+        C1 =  io.imread(str(img_path) + "_C1.tif")
+        C2 =  io.imread(str(img_path) + "_C2.tif")
+        prd = io.imread(str(img_path) + "_predictions.tif")
+        return C1, C2, prd
     
     # Initialize
     metadata = extract_metadata(czi_path)
@@ -448,72 +440,21 @@ def analyse_results(data_path):
     mResults.to_csv(csv_paths[0].parent.parent / "mResults.csv", index=False)
     aResults.to_csv(csv_paths[0].parent.parent / "aResults.csv", index=False)
 
-#%% Function : plot_results() -------------------------------------------------
-
-def plot_results(aResults):
-    
-    # Initialize
-    data = ["C2C1_ratio", "C2_areas", "C2_mean_int"]
-    plates = np.unique(aResults["plate"])
-    nPlates = len(plates)
-
-    for dat in data:
-
-        fig, axes = plt.subplots(nPlates, 1, figsize=(8, 3 * nPlates))
-        
-        for ax, plate in zip(axes, plates):
-            
-            # Initialize
-            df = aResults[aResults['plate'] == plate]
-            wells = df["well"]
-            avg = np.array(df[f"{dat}_avg"])
-            sem = np.array(df[f"{dat}_sem"])
-            x = np.arange(len(wells))
-            avg[np.isnan(avg)] = 0
-        
-            # Plot
-            ax.bar(
-                x, avg, 
-                yerr=sem, capsize=5,
-                color="lightgray", alpha=1, label=dat,
-                )
-        
-            # Formatting
-            if dat == "C2C1_ratio"  : ax.set_ylim(0, 0.02)
-            if dat == "C2_areas"    : ax.set_ylim(0, 300)
-            if dat == "C2_mean_int" : ax.set_ylim(10000, 60000)
-            ax.set_xticks(x)
-            ax.set_xticklabels(wells, rotation=90)
-            ax.set_ylabel(dat)
-            ax.set_title(plate)
-            ax.legend(loc="upper right")
-        
-        # Save
-        plt.tight_layout()
-        plt.savefig(czi_paths[0].parent / f"histograms_{dat}.png", format="png")
-        plt.show()
-
 #%% Function : display_images() -----------------------------------------------
 
 def display_images(czi_path):
        
-    def load_images(display_path):
-        return io.imread(display_path)
-    
     # Initialize
     exp_path = Path(czi_path.parent / czi_path.stem)
     display_paths = list(exp_path.glob("*_display.tif"))
     
     # Load images
-    t0 = time.time()
-    print(f"load displays {czi_path.name}", end=" ", flush=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-        displays = list(executor.map(load_images, display_paths))
+    displays = []
+    for display_path in display_paths:
+        displays.append(io.imread(display_path))
     C1s = [data[..., 0] for data in displays]
     C2s = [data[..., 1] for data in displays]
     C3s = [data[..., 2] for data in displays]
-    t1 = time.time()
-    print(f"({t1 - t0:.3f}s)")
     
     # Viewer
     viewer = napari.Viewer()
@@ -544,7 +485,6 @@ if __name__ == "__main__":
         if process:
             process_images(
                 czi_path,
-                C2_min_area=C2_min_area,
                 C2_min_mean_int=C2_min_mean_int,
                 C2_min_mean_edt=C2_min_mean_edt,
                 )
@@ -552,41 +492,53 @@ if __name__ == "__main__":
     if analyse:
         analyse_results(data_path)
         
-    if plot:
-        aResults = pd.read_csv(list(data_path.rglob("*aResults.csv"))[0])
-        plot_results(aResults)
-        
     if display:
         display_images(czi_paths[display_idx])
     
     pass
 
-#%% Tests
+#%% Plot
 
-# def load_images(C2_path):
-#     return io.imread(C2_path)
+import matplotlib.pyplot as plt
 
-# C2ss = []
-# for czi_path in czi_paths:
-    
-#     # Initialize
-#     exp_path = Path(czi_path.parent / czi_path.stem)
-#     C2_paths = exp_path.glob("*_C2.tif")
+# Parameters
+data = "C2C1_ratio"
 
-#     # Load images
-#     t0 = time.time()
-#     print(f"load C2s {czi_path.name}", end=" ", flush=True)
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-#         imports = list(executor.map(load_images, C2_paths))
-#     C2ss.append(imports)
-#     t1 = time.time()
-#     print(f"({t1 - t0:.3f}s)")
+# Initialize
+plates = np.unique(aResults["plate"])
+nPlates = len(plates)
+
+fig, axes = plt.subplots(
+    nPlates, 1, figsize=(8, 3 * nPlates))
+
+for ax, plate in zip(axes, plates):
     
-# # Measure
-# for i, C2s in enumerate(C2ss):
-#     print(
-#         f"C2s {czi_paths[i].name} "
-#         f"lows/mean/highs = "
-#         f"{np.quantile(C2s, 0.1):.0f}/{np.mean(C2s):.0f}/{np.quantile(C2s, 0.9):.0f}"
-#         )
-    
+    # Initialize
+    df = aResults[aResults['plate'] == plate]
+    wells = df["well"]
+    avg = np.array(df[f"{data}_avg"])
+    sem = np.array(df[f"{data}_sem"])
+    x = np.arange(len(wells))
+    avg[np.isnan(avg)] = 0
+
+    # Plot
+    ax.bar(
+        x, avg, 
+        yerr=[np.zeros_like(sem), sem], capsize=5,
+        color="skyblue", alpha=0.7, label=data,
+        )
+
+    # Formatting
+    if data == "C2C1_ratio":
+        ax.set_ylim(0, 0.006)
+    if data == "C2_areas":
+        ax.set_ylim(0, 300)
+    ax.set_xticks(x)
+    ax.set_xticklabels(wells, rotation=90)  # Rotate labels if many
+    ax.set_ylabel(data)
+    ax.set_title(plate)
+    ax.legend(loc="upper right")
+
+# Adjust layout
+plt.tight_layout()
+plt.show()
