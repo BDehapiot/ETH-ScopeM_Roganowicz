@@ -39,17 +39,17 @@ from scipy.ndimage import distance_transform_edt
 # Procedure
 preprocess = False
 process = False
-analyse = True
-plot = True
+analyse = False
+plot = False
 display = False
-display_idx = 3
+display_idx = 1
 
 # Process parameters
 rS = "all"
 # rS = tuple(np.arange(0, 3168, 10))
 batch_size = 500
 patch_overlap = 16
-C2_min_area = 64
+C2_min_area = 32
 C2_min_mean_int = 15000
 C2_min_mean_edt = 20
 
@@ -176,7 +176,7 @@ def process_images(
         gbl2 = gaussian(C2, sigma=C2_dog_sigma2) # parameter
         C2_dog = (gbl1 - gbl2) / gbl2
         C2_msk = C2_dog > C2_dog_thresh # parameter
-        C2_msk = remove_small_objects(C2_msk, min_size=C2_min_area) # parameter
+        C2_msk = remove_small_objects(C2_msk, min_size=C2_min_area // 2) # parameter
         C2_lbl = label(C2_msk)
         C2_out = binary_dilation(C2_msk) ^ C2_msk
         
@@ -206,10 +206,16 @@ def process_images(
             mean_edt = np.mean(C1_edt[C2_lbl == lbl])
             area = props.area
 
-            if mean_int < C2_min_mean_int or mean_edt > C2_min_mean_edt: # parameters !!!
+            if (area < C2_min_area or
+                mean_int < C2_min_mean_int or 
+                mean_edt > C2_min_mean_edt ): # parameters !!!                
+                
+                isvalid = False
                 C2_msk_valid[C2_lbl_valid == lbl] = False
         
             else:
+                
+                isvalid = True
                 
                 # Update result #1
                 result["C2_areas"].append(area.astype(int))
@@ -222,16 +228,17 @@ def process_images(
                 display[rr, cc] = 255
                 
             # Draw object texts
+            text_int = 192 if isvalid else 96
             font = cv2.FONT_HERSHEY_DUPLEX
             cv2.putText(
                 display, f"{mean_int:.2e}", 
                 (x + 15, y - 16), # depend on resolution !!!
-                font, 0.5, 192, 1, cv2.LINE_AA
+                font, 0.5, text_int, 1, cv2.LINE_AA
                 ) 
             cv2.putText(
                 display, f"{area:.0f}", 
                 (x + 15, y), # depend on resolution !!!
-                font, 0.5, 192, 1, cv2.LINE_AA
+                font, 0.5, text_int, 1, cv2.LINE_AA
                 ) 
         
         C2_lbl_valid = label(C2_msk_valid)
@@ -558,35 +565,59 @@ if __name__ == "__main__":
         
     if display:
         display_images(czi_paths[display_idx])
-    
-    pass
+        
+#%% 
 
-#%% Tests
+    # czi_path = czi_paths[0]
 
-# def load_images(C2_path):
-#     return io.imread(C2_path)
+    # def load_images(img_path):
+    #     C1 =  io.imread(str(img_path) + "_C1.tif")
+    #     C2 =  io.imread(str(img_path) + "_C2.tif")
+    #     prd = io.imread(str(img_path) + "_predictions.tif")
+    #     return C1, C2, prd
 
-# C2ss = []
-# for czi_path in czi_paths:
-    
-#     # Initialize
-#     exp_path = Path(czi_path.parent / czi_path.stem)
-#     C2_paths = exp_path.glob("*_C2.tif")
+    # # Initialize
+    # metadata = extract_metadata(czi_path)
+    # exp_path = Path(czi_path.parent / czi_path.stem)
+    # img_paths = [
+    #     Path(str(path).replace("_C1.tif", "")) 
+    #     for path in exp_path.glob("*_C1.tif")
+    #     ]
+    # img_names = [path.stem for path in img_paths]
+    # rS = [int(name.split("_")[2]) for name in img_names]
 
-#     # Load images
-#     t0 = time.time()
-#     print(f"load C2s {czi_path.name}", end=" ", flush=True)
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-#         imports = list(executor.map(load_images, C2_paths))
-#     C2ss.append(imports)
-#     t1 = time.time()
-#     print(f"({t1 - t0:.3f}s)")
+    # # Load images
+    # t0 = time.time()
+    # print(f"load {czi_path.name}", end=" ", flush=True)
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+    #     imports = list(executor.map(load_images, img_paths))
+    # C1s, C2s, prds = zip(*imports)
+    # t1 = time.time()
+    # print(f"({t1 - t0:.3f}s)")
     
-# # Measure
-# for i, C2s in enumerate(C2ss):
-#     print(
-#         f"C2s {czi_paths[i].name} "
-#         f"lows/mean/highs = "
-#         f"{np.quantile(C2s, 0.1):.0f}/{np.mean(C2s):.0f}/{np.quantile(C2s, 0.9):.0f}"
-#         )
+    # # Detect C2 objects -------------------------------------------------------
     
+    # C2_dog_sigma1 = 1 
+    # C2_dog_sigma2 = 8
+    # C2_dog_thresh = 1
+        
+    # C2_lbls, C2_outs = [], []
+    
+    # for C2 in C2s:
+        
+    #     gbl1 = gaussian(C2, sigma=C2_dog_sigma1) # parameter
+    #     gbl2 = gaussian(C2, sigma=C2_dog_sigma2) # parameter
+    #     C2_dog = (gbl1 - gbl2) / gbl2
+    #     C2_msk = C2_dog > C2_dog_thresh # parameter
+    #     C2_msk = remove_small_objects(C2_msk, min_size=C2_min_area // 2) # parameter
+    #     C2_lbl = label(C2_msk)
+    #     C2_out = binary_dilation(C2_msk) ^ C2_msk
+        
+    #     C2_lbls.append(C2_lbl)
+    #     C2_outs.append(C2_out)
+    
+    # # Display
+    # viewer = napari.Viewer()
+    # viewer.add_image(np.stack(C2s), colormap="green")
+    # viewer.add_image(np.stack(C2_outs), blending="additive")
+    # viewer.add_labels(np.stack(C2_lbls)) 
