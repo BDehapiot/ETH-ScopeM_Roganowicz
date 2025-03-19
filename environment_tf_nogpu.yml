@@ -23,7 +23,7 @@ dependencies:
   # conda_tf_nogpu
   - pip:
     # pip_core
-    - bd-tools==0.2.2
+    - bd-tools==0.2.3
     # pip_spec
     - stardist
     - csbdeep

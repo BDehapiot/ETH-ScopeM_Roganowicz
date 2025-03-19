@@ -14,20 +14,21 @@ from czitools import extract_metadata
 # bdtools
 from bdtools.patch import extract_patches
 
-#%% Comments ------------------------------------------------------------------
-
 #%% Inputs --------------------------------------------------------------------
-
-# Paths
-data_path = Path("D:\local_Roganowicz\data")
-train_path = Path(Path.cwd(), "data", "train")
-czi_paths = list(data_path.rglob("*.czi"))
 
 # Parameters
 nS = 50   # number of extracted scene per czi file
 rf = 0.25 # rescaling factor
 size = int(512 * rf)
 np.random.seed(41)
+
+#%% Initialize ----------------------------------------------------------------
+
+# Paths
+data_path = Path("D:\local_Roganowicz\data")
+# data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
+train_path = Path(Path.cwd(), "data", "train")
+czi_paths = list(data_path.rglob("*.czi"))
 
 #%% Execute -------------------------------------------------------------------
 

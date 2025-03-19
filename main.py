@@ -16,9 +16,6 @@ from joblib import Parallel, delayed
 # czitools
 from czitools import extract_metadata, extract_data
 
-# bdtools
-from bdtools.norm import norm_gcn, norm_pct
-
 # bdmodel
 from bdmodel.predict import predict
 
@@ -40,9 +37,9 @@ from scipy.ndimage import distance_transform_edt
 preprocess = False
 process = False
 analyse = False
-plot = False
-display = False
-display_idx = 1
+plot = True
+display = True
+display_idx = 0
 
 # Process parameters
 rS = "all"
@@ -57,6 +54,7 @@ C2_min_mean_edt = 20
 
 # Paths
 data_path = Path("D:\local_Roganowicz\data")
+# data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
 czi_paths = list(data_path.rglob("*.czi"))
 
 #%% Function : preprocess_images() --------------------------------------------
@@ -565,59 +563,3 @@ if __name__ == "__main__":
         
     if display:
         display_images(czi_paths[display_idx])
-        
-#%% 
-
-    # czi_path = czi_paths[0]
-
-    # def load_images(img_path):
-    #     C1 =  io.imread(str(img_path) + "_C1.tif")
-    #     C2 =  io.imread(str(img_path) + "_C2.tif")
-    #     prd = io.imread(str(img_path) + "_predictions.tif")
-    #     return C1, C2, prd
-
-    # # Initialize
-    # metadata = extract_metadata(czi_path)
-    # exp_path = Path(czi_path.parent / czi_path.stem)
-    # img_paths = [
-    #     Path(str(path).replace("_C1.tif", "")) 
-    #     for path in exp_path.glob("*_C1.tif")
-    #     ]
-    # img_names = [path.stem for path in img_paths]
-    # rS = [int(name.split("_")[2]) for name in img_names]
-
-    # # Load images
-    # t0 = time.time()
-    # print(f"load {czi_path.name}", end=" ", flush=True)
-    # with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-    #     imports = list(executor.map(load_images, img_paths))
-    # C1s, C2s, prds = zip(*imports)
-    # t1 = time.time()
-    # print(f"({t1 - t0:.3f}s)")
-    
-    # # Detect C2 objects -------------------------------------------------------
-    
-    # C2_dog_sigma1 = 1 
-    # C2_dog_sigma2 = 8
-    # C2_dog_thresh = 1
-        
-    # C2_lbls, C2_outs = [], []
-    
-    # for C2 in C2s:
-        
-    #     gbl1 = gaussian(C2, sigma=C2_dog_sigma1) # parameter
-    #     gbl2 = gaussian(C2, sigma=C2_dog_sigma2) # parameter
-    #     C2_dog = (gbl1 - gbl2) / gbl2
-    #     C2_msk = C2_dog > C2_dog_thresh # parameter
-    #     C2_msk = remove_small_objects(C2_msk, min_size=C2_min_area // 2) # parameter
-    #     C2_lbl = label(C2_msk)
-    #     C2_out = binary_dilation(C2_msk) ^ C2_msk
-        
-    #     C2_lbls.append(C2_lbl)
-    #     C2_outs.append(C2_out)
-    
-    # # Display
-    # viewer = napari.Viewer()
-    # viewer.add_image(np.stack(C2s), colormap="green")
-    # viewer.add_image(np.stack(C2_outs), blending="additive")
-    # viewer.add_labels(np.stack(C2_lbls)) 
