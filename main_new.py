@@ -41,12 +41,12 @@ czi_paths = list(data_path.glob("*.czi"))
 #%% Inputs --------------------------------------------------------------------
 
 # Procedure
-preprocess = 1
+preprocess = 0
 process = 0
-analyse = 0
+analyse = 1
 plot = 0
 display = 0
-display_idx = 0
+display_idx = 10
 
 # Process parameters
 rS = "all"
@@ -54,7 +54,7 @@ rS = "all"
 batch_size = 500
 patch_overlap = 16
 C2_min_area = 32
-C2_min_mean_int = 15000
+C2_min_mean_int = 3000
 C2_min_mean_edt = 20
 
 #%% Function : preprocess_images() --------------------------------------------
@@ -132,7 +132,7 @@ def preprocess_images(
 def process_images(
         czi_path,
         C2_min_area=32,
-        C2_min_mean_int=30000,
+        C2_min_mean_int=15000,
         C2_min_mean_edt=20,
         ):
     
@@ -153,9 +153,9 @@ def process_images(
         C2_dog_thresh = 1
 
         # Initialize
+        replicate = czi_path.stem.split("_")[1]
         well = metadata["scn_well"][i]
         position = metadata["scn_pos"][i]
-        replicate = czi_path.stem.split("_")[1]
         img_name = f"{czi_path.stem}_{i:04d}_{well}-{position}"
         
         # Detect C1 nuclei
@@ -188,6 +188,7 @@ def process_images(
         # Results
         result = {
             "plate"       : czi_path.stem,
+            "replicate"   : replicate,
             "well"        : well,
             "position"    : position,
             "C2_areas"    : [],
@@ -336,7 +337,7 @@ def process_images(
     # Format & save results
     results = pd.DataFrame(results)
     results = results[[
-        "plate", "well", "position", 
+        "plate", "replicate", "well", "position", 
         "C1_count", "C2_count", "C2C1_ratio",
         "C2_areas", "C2_mean_int", "C2_mean_edt",
         ]]
@@ -364,38 +365,35 @@ def analyse_results(data_path):
     
     def convert_mapping(mResults):
         
-        # plate_mapping = {
-        #     'Plate_01-01': 'Control 0.1% DMSO',
-        #     'Plate_02-01': 'Norfloxacin 0.002 µg/ml',
-        #     'Plate_03-01': 'Norfloxacin 0.008 µg/ml',
-        #     'Plate_04-01': 'Norfloxacin 0.032 µg/ml',
-        #     }
-        
         plate_mapping = {
-            'Norfloxacin_r1_plate1_control-01':
-                'ctrl r1',
-            'Norfloxacin_r1_plate2_norfloxacin_0_002_ug_ml-01':
-                'Norflo. 0.002 µg/ml r1',
-            'Norfloxacin_r1_plate3_norfloxacin_0_008_ug_ml-01':
-                'Norflo. 0.008 µg/ml r1',
-            'Norfloxacin_r1_plate4_norfloxacin_0_032_ug_ml-01':
-                'Norflo. 0.032 µg/ml r1',
-            'Norfloxacin_r2_plate1_control-01':
-                'ctrl r2',
-            'Norfloxacin_r2_plate2_norfloxacin_0_002_ug_ml-01':
-                'Norflo. 0.002 µg/ml r2',
-            'Norfloxacin_r2_plate3_norfloxacin_0_008_ug_ml-01':
-                'Norflo. 0.008 µg/ml r2',
-            'Norfloxacin_r2_plate4_norfloxacin_0_032_ug_ml-01':
-                'Norflo. 0.032 µg/ml r2',
-            'Norfloxacin_r3_plate1_control-01':
-                'ctrl r3',
-            'Norfloxacin_r3_plate2_norfloxacin_0_002_ug_ml-01':
-                'Norflo. 0.002 µg/ml r3',
-            'Norfloxacin_r3_plate3_norfloxacin_0_008_ug_ml-01':
-                'Norflo. 0.008 µg/ml r3',
-            'Norfloxacin_r3_plate4_norfloxacin_0_032_ug_ml-01':
-                'Norflo. 0.032 µg/ml r3',
+            
+            'p1_r1_2025-03-12_b2_control':
+                'control 0.1% DMSO',
+            'p2_r1_2025-03-12_b2_norfloxacin-002':
+                'norfloxacin 0.002 µg/ml',
+            'p3_r1_2025-03-12_b2_norfloxacin-008':
+                'norfloxacin 0.008 µg/ml',
+            'p4_r1_2025-03-12_b2_norfloxacin-032':
+                'norfloxacin 0.032 µg/ml',
+                
+            'p1_r2_2025-03-13_b2_control':
+                'control 0.1% DMSO',
+            'p2_r2_2025-03-13_b2_norfloxacin-002':
+                'norfloxacin 0.002 µg/ml',
+            'p3_r2_2025-03-13_b2_norfloxacin-008':
+                'norfloxacin 0.008 µg/ml',
+            'p4_r2_2025-03-13_b2_norfloxacin-032':
+                'norfloxacin 0.032 µg/ml',
+                    
+            'p1_r3_2025-03-17_b2_control':
+                'control 0.1% DMSO',
+            'p2_r3_2025-03-17_b2_norfloxacin-002':
+                'norfloxacin 0.002 µg/ml',
+            'p3_r3_2025-03-17_b2_norfloxacin-008':
+                'norfloxacin 0.008 µg/ml',
+            'p4_r3_2025-03-17_b2_norfloxacin-032':
+                'norfloxacin 0.032 µg/ml',
+
             }
 
         well_mapping = {
@@ -429,7 +427,7 @@ def analyse_results(data_path):
     # Avg. results (aResults)
     
     aResults = {
-        "plate" : [], "well" : [],
+        "plate" : [], "replicate" : [], "well" : [],
         "C1_count_cum"    : [], "C2_count_cum"    : [],
         "C2C1_ratio_avg"  : [], "C2C1_ratio_std"  : [], "C2C1_ratio_sem"  : [],
         "C2_areas_avg"    : [], "C2_areas_std"    : [], "C2_areas_sem"    : [],
@@ -437,11 +435,12 @@ def analyse_results(data_path):
         "C2_mean_edt_avg" : [], "C2_mean_edt_std" : [], "C2_mean_edt_sem" : [],
         }
 
-    conds = mResults[['plate', 'well']].drop_duplicates().reset_index(drop=True)
+    conds = mResults[['plate', 'replicate', 'well']].drop_duplicates().reset_index(drop=True)
     for index, row in conds.iterrows():        
         
         df = mResults[
             (mResults['plate'] == row['plate']) &
+            (mResults['replicate'] == row['replicate']) &
             (mResults['well' ] == row['well' ])
             ] 
         
@@ -456,6 +455,7 @@ def analyse_results(data_path):
         C2_mean_edt_stats = get_stats(C2_mean_edt)
             
         aResults['plate'          ].append(row['plate'])
+        aResults['replicate'      ].append(row['replicate'])
         aResults['well'           ].append(row['well' ])
         aResults['C1_count_cum'   ].append(C1_count_cum)
         aResults['C2_count_cum'   ].append(C2_count_cum)
@@ -570,7 +570,7 @@ if __name__ == "__main__":
     
     for czi_path in czi_paths:
         
-        # print(czi_path)
+        print(czi_path.stem)
     
         if preprocess:
             preprocess_images(
@@ -596,3 +596,56 @@ if __name__ == "__main__":
         
     if display:
         display_images(czi_paths[display_idx])
+        
+#%%
+
+    aResults = pd.read_csv(list(data_path.rglob("*aResults.csv"))[0])
+    
+    # Initialize
+    data = ["C2C1_ratio", "C2_areas", "C2_mean_int"]
+    plates = np.unique(aResults["plate"])
+    nPlates = len(plates)
+    
+    for dat in data:
+        
+        # Initialize plot
+        fig, axes = plt.subplots(nPlates, 1, figsize=(8, 3 * nPlates))
+        
+        # Merge replicates
+        avgResults = aResults.groupby(
+            ['plate', 'well'], as_index=False)[f'{dat}_avg'].mean()
+        semResults = aResults.groupby(
+            ['plate', 'well'], as_index=False)[f'{dat}_avg'].sem()
+        
+        for ax, plate in zip(axes, plates):
+            
+            # Format data
+            avgDf = avgResults[avgResults['plate'] == plate]
+            semDf = semResults[avgResults['plate'] == plate]
+            wells = avgDf["well"]
+            x = np.arange(len(wells))
+            avg = np.array(avgDf[f"{dat}_avg"])
+            sem = np.array(semDf[f"{dat}_avg"])
+            
+            # Plot
+            ax.bar(
+                x, avg, 
+                yerr=sem, capsize=5,
+                color="lightgray", alpha=1, label=dat,
+                )
+            
+            # Formatting
+            if dat == "C2C1_ratio"  : ax.set_ylim(0, 0.02)
+            if dat == "C2_areas"    : ax.set_ylim(0, 300)
+            if dat == "C2_mean_int" : ax.set_ylim(1000, 30000)
+            ax.set_xticks(x)
+            ax.set_xticklabels(wells, rotation=90)
+            ax.set_ylabel(dat)
+            ax.set_title(plate)
+            ax.legend(loc="upper right")
+            
+        # Save
+        plt.tight_layout()
+        plt.savefig(czi_paths[0].parent / f"histograms_{dat}.png", format="png")
+        plt.show()
+
