@@ -31,11 +31,18 @@ from skimage.morphology import (
 # scipy
 from scipy.ndimage import distance_transform_edt
 
+#%% Paths ---------------------------------------------------------------------
+
+# Paths
+data_path = Path("D:\local_Roganowicz\data\\2025-03_mutants_norfloxacin")
+# data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
+czi_paths = list(data_path.glob("*.czi"))
+
 #%% Inputs --------------------------------------------------------------------
 
 # Procedure
-preprocess = 0
-process = 1
+preprocess = 1
+process = 0
 analyse = 0
 plot = 0
 display = 0
@@ -50,13 +57,6 @@ C2_min_area = 32
 C2_min_mean_int = 15000
 C2_min_mean_edt = 20
 
-#%% Initialize ----------------------------------------------------------------
-
-# Paths
-data_path = Path("D:\local_Roganowicz\data\\202503_Norfloxacin_binning_2x2")
-# data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
-czi_paths = list(data_path.glob("*.czi"))
-
 #%% Function : preprocess_images() --------------------------------------------
 
 def preprocess_images(
@@ -67,7 +67,8 @@ def preprocess_images(
         ):
     
     # Fixed parameters
-    rf = 0.5 # binning 1x1 1.0, binning 2x2 0.5
+    if "_b1_" in czi_path.stem: rf = 1.0
+    if "_b2_" in czi_path.stem: rf = 0.5
     model_path = Path(Path.cwd(), "model_nuclei_edt")
     
     # Initialize
@@ -113,7 +114,7 @@ def preprocess_images(
     for i, C1, C2, prd in zip(rS, C1s, C2s, prds):
         well = metadata["scn_well"][i]
         position = metadata["scn_pos"][i]
-        img_name = f"{czi_path.stem}_{i:04d}_{well}-{position}"
+        img_name = f"{czi_path.stem}_{i:04d}_{well}-{position:03d}"
         io.imsave(
             exp_path / (img_name + "_C1.tif"),
             C1.astype("uint16"), check_contrast=False)
@@ -154,6 +155,7 @@ def process_images(
         # Initialize
         well = metadata["scn_well"][i]
         position = metadata["scn_pos"][i]
+        replicate = czi_path.stem.split("_")[1]
         img_name = f"{czi_path.stem}_{i:04d}_{well}-{position}"
         
         # Detect C1 nuclei
@@ -310,7 +312,7 @@ def process_images(
         for path in exp_path.glob("*_C1.tif")
         ]
     img_names = [path.stem for path in img_paths]
-    rS = [int(name.split("_")[2]) for name in img_names]
+    rS = [int(name.split("_")[-2]) for name in img_names]
 
     # Load images
     t0 = time.time()
@@ -362,11 +364,38 @@ def analyse_results(data_path):
     
     def convert_mapping(mResults):
         
+        # plate_mapping = {
+        #     'Plate_01-01': 'Control 0.1% DMSO',
+        #     'Plate_02-01': 'Norfloxacin 0.002 µg/ml',
+        #     'Plate_03-01': 'Norfloxacin 0.008 µg/ml',
+        #     'Plate_04-01': 'Norfloxacin 0.032 µg/ml',
+        #     }
+        
         plate_mapping = {
-            'Plate_01-01': 'Control 0.1% DMSO',
-            'Plate_02-01': 'Norfloxacin 0.002 µg/ml',
-            'Plate_03-01': 'Norfloxacin 0.008 µg/ml',
-            'Plate_04-01': 'Norfloxacin 0.032 µg/ml',
+            'Norfloxacin_r1_plate1_control-01':
+                'ctrl r1',
+            'Norfloxacin_r1_plate2_norfloxacin_0_002_ug_ml-01':
+                'Norflo. 0.002 µg/ml r1',
+            'Norfloxacin_r1_plate3_norfloxacin_0_008_ug_ml-01':
+                'Norflo. 0.008 µg/ml r1',
+            'Norfloxacin_r1_plate4_norfloxacin_0_032_ug_ml-01':
+                'Norflo. 0.032 µg/ml r1',
+            'Norfloxacin_r2_plate1_control-01':
+                'ctrl r2',
+            'Norfloxacin_r2_plate2_norfloxacin_0_002_ug_ml-01':
+                'Norflo. 0.002 µg/ml r2',
+            'Norfloxacin_r2_plate3_norfloxacin_0_008_ug_ml-01':
+                'Norflo. 0.008 µg/ml r2',
+            'Norfloxacin_r2_plate4_norfloxacin_0_032_ug_ml-01':
+                'Norflo. 0.032 µg/ml r2',
+            'Norfloxacin_r3_plate1_control-01':
+                'ctrl r3',
+            'Norfloxacin_r3_plate2_norfloxacin_0_002_ug_ml-01':
+                'Norflo. 0.002 µg/ml r3',
+            'Norfloxacin_r3_plate3_norfloxacin_0_008_ug_ml-01':
+                'Norflo. 0.008 µg/ml r3',
+            'Norfloxacin_r3_plate4_norfloxacin_0_032_ug_ml-01':
+                'Norflo. 0.032 µg/ml r3',
             }
 
         well_mapping = {
@@ -383,7 +412,7 @@ def analyse_results(data_path):
         mResults['plate'] = mResults['plate'].replace(plate_mapping)
         mResults['well' ] = mResults['well' ].replace(well_mapping)   
             
-    global mResults, aResults
+    global mResults, aResults, conds
     
     # Initialize
     csv_paths = list(data_path.rglob("*_results.csv"))
@@ -400,7 +429,7 @@ def analyse_results(data_path):
     # Avg. results (aResults)
     
     aResults = {
-        "plate"           : [], "well"            : [],
+        "plate" : [], "well" : [],
         "C1_count_cum"    : [], "C2_count_cum"    : [],
         "C2C1_ratio_avg"  : [], "C2C1_ratio_std"  : [], "C2C1_ratio_sem"  : [],
         "C2_areas_avg"    : [], "C2_areas_std"    : [], "C2_areas_sem"    : [],
