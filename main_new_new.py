@@ -33,7 +33,6 @@ from scipy.ndimage import distance_transform_edt
 
 #%% Paths ---------------------------------------------------------------------
 
-# Paths
 data_path = Path("D:\local_Roganowicz\data\\2025-03_mutants_norfloxacin")
 # data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
 czi_paths = list(data_path.glob("*.czi"))
@@ -65,9 +64,7 @@ def preprocess_images(
         batch_size=500,
         patch_overlap=16,
         ):
-    
-    global C1s, C2s
-    
+        
     # Fixed parameters
     if "_b1_" in czi_path.stem: rf = 1.0
     if "_b2_" in czi_path.stem: rf = 0.5
@@ -75,20 +72,21 @@ def preprocess_images(
     
     # Initialize
     metadata = extract_metadata(czi_path)
-    exp_path = Path(czi_path.parent / czi_path.stem)
-    if exp_path.exists():
-        for item in exp_path.iterdir():
+    czi_stem = czi_path.stem
+    preprocess_path = czi_path.parent / czi_stem
+    if preprocess_path.exists():
+        for item in preprocess_path.iterdir():
             if item.is_file() or item.is_symlink():
                 item.unlink()
             elif item.is_dir():
                 shutil.rmtree(item)
     else:
-        exp_path.mkdir(parents=True, exist_ok=True)
+        preprocess_path.mkdir(parents=True, exist_ok=True)
     
     # Extract images ----------------------------------------------------------
     
     t0 = time.time()
-    print(f"extract {czi_path.name}", end=" ", flush=True)
+    print(f"extract : {czi_path.name}", end=" ", flush=True)
     _, C1s = extract_data(czi_path, rS=rS, rC=0, zoom=rf)
     _, C2s = extract_data(czi_path, rS=rS, rC=1, zoom=rf)
     C1s = [C1.squeeze() for C1 in C1s]
@@ -100,7 +98,7 @@ def preprocess_images(
     # Predict images ----------------------------------------------------------
     
     t0 = time.time()
-    print(f"predict {czi_path.name}")
+    print(f"predict : {czi_path.name}")
     prds = []
     if batch_size > len(C1s): batch_size = len(C1s)
     for i in range(0, len(C1s), batch_size):
@@ -115,11 +113,11 @@ def preprocess_images(
     # Save images -------------------------------------------------------------
     
     t0 = time.time()
-    print(f"save {czi_path.name}", end=" ", flush=True)
+    print(f"save : {czi_path.name}", end=" ", flush=True)
     
     # Convert data to uint8
-    C1s = [(C1 / 255).astype("uint8") for C1 in C1s]
-    C2s = [(C2 / 255).astype("uint8") for C2 in C2s]
+    C1s  = [(C1  / 257).astype("uint8") for C1  in C1s ]
+    C2s  = [(C2  / 257).astype("uint8") for C2  in C2s ]
     prds = [(prd * 255).astype("uint8") for prd in prds]
     
     # Save
@@ -127,15 +125,15 @@ def preprocess_images(
     for i, C1, C2, prd in zip(rS, C1s, C2s, prds):
         well = metadata["scn_well"][i]
         position = metadata["scn_pos"][i]
-        img_name = f"{czi_path.stem}_{i:04d}_{well}-{position:03d}"
+        img_name = f"{czi_stem}_{i:04d}_{well}-{position:03d}"
         io.imsave(
-            exp_path / (img_name + "_C1.tif"),
+            preprocess_path / (img_name + "_C1.tif"),
             C1, check_contrast=False)
         io.imsave(
-            exp_path / (img_name + "_C2.tif"),
+            preprocess_path / (img_name + "_C2.tif"), 
             C2, check_contrast=False)
         io.imsave(
-            exp_path / (img_name + "_predictions.tif"), 
+            preprocess_path / (img_name + "_predictions.tif"), 
             prd, check_contrast=False)
     
     t1 = time.time()
@@ -146,7 +144,7 @@ def preprocess_images(
 def process_images(
         czi_path,
         C2_min_area=32,
-        C2_min_mean_int=15000,
+        C2_min_mean_int=12,
         C2_min_mean_edt=20,
         ):
     
@@ -223,7 +221,7 @@ def process_images(
 
             if (area < C2_min_area or
                 mean_int < C2_min_mean_int or 
-                mean_edt > C2_min_mean_edt ): # parameters !!!                
+                mean_edt > C2_min_mean_edt ):              
                 
                 isvalid = False
                 C2_msk_valid[C2_lbl_valid == lbl] = False
@@ -269,94 +267,86 @@ def process_images(
         result["C2_count"  ] = C2_count
         result["C2C1_ratio"] = C1C2_ratio
                 
-        # Merge display
+        # Merge & save display
         display += (C2_out * 128)
         display = np.maximum(display, (C1_out * 64))
-        merged_display = np.stack((
-            (C1 / 257).astype("uint8"), 
-            (C2 / 257).astype("uint8"), 
-            display.astype("uint8"),
-            ), axis=0)
-                
-        # Save predictions
-        io.imsave(
-            exp_path / (img_name + "_predictions.tif"),
-            prd.astype("float32"), check_contrast=False
-            )
-        
-        # Save labels
-        io.imsave(
-            exp_path / (img_name + "_C1_labels.tif"),
-            C1_lbl.astype("uint16"), check_contrast=False
-            )
-        io.imsave(
-            exp_path / (img_name + "_C2_labels.tif"),
-            C2_lbl_valid.astype("uint16"), check_contrast=False
-            )
-        
-        # Save display
-        val_range = np.arange(256, dtype='uint8')
-        lut_gray = np.stack([val_range, val_range, val_range])
-        lut_green = np.zeros((3, 256), dtype='uint8')
-        lut_green[1, :] = val_range
-        lut_magenta = np.zeros((3, 256), dtype='uint8')
-        lut_magenta[[0,2],:] = np.arange(256, dtype='uint8')
         io.imsave(
             exp_path / (img_name + "_display.tif"),
-            merged_display,
-            check_contrast=False,
-            imagej=True,
-            metadata={
-                'axes': 'CYX', 
-                'mode': 'composite',
-                'LUTs': [lut_magenta, lut_green, lut_gray],
-                },
-            photometric='minisblack',
-            planarconfig='contig',
+            display.astype("uint8"), check_contrast=False
             )
         
         return result
 
     # Execute -----------------------------------------------------------------
-    
+        
     # Initialize
     metadata = extract_metadata(czi_path)
-    exp_path = Path(czi_path.parent / czi_path.stem)
+    czi_stem = czi_path.stem
+    preprocess_path = czi_path.parent / czi_stem
     img_paths = [
         Path(str(path).replace("_C1.tif", "")) 
-        for path in exp_path.glob("*_C1.tif")
+        for path in preprocess_path.glob("*_C1.tif")
         ]
     img_names = [path.stem for path in img_paths]
     rS = [int(name.split("_")[-2]) for name in img_names]
+    process_name = (
+        "process_"
+        f"min-area({C2_min_area})_"
+        f"min-int({C2_min_mean_int})_"
+        f"min-edt({C2_min_mean_edt})"
+        )
+    process_path = czi_path.parent / process_name
+    if process_path.exists():
+        for item in process_path.iterdir():
+            if item.is_file() or item.is_symlink():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+    else:
+        process_path.mkdir(parents=True, exist_ok=True)
+    
+    # exp_name = czi_path.stem
+    # exp_path = czi_path.parent / exp_name
+    # if exp_path.exists():
+    #     for item in exp_path.iterdir():
+    #         if item.is_file() or item.is_symlink():
+    #             item.unlink()
+    #         elif item.is_dir():
+    #             shutil.rmtree(item)
+    # else:
+    #     exp_path.mkdir(parents=True, exist_ok=True)
 
-    # Load images
-    t0 = time.time()
-    print(f"load {czi_path.name}", end=" ", flush=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-        imports = list(executor.map(load_images, img_paths))
-    C1s, C2s, prds = zip(*imports)
-    t1 = time.time()
-    print(f"({t1 - t0:.3f}s)")
+    # Load images -------------------------------------------------------------
     
-    # Process images
-    t0 = time.time()
-    print(f"process {czi_path.name}", end=" ", flush=True)
-    results = Parallel(n_jobs=-1)(
-        delayed(_process_images)(i, C1, C2, prd) 
-        for (i, C1, C2, prd) in zip(rS, C1s, C2s, prds)
-        )    
-    t1 = time.time()
-    print(f"({t1 - t0:.3f}s)")
+    # t0 = time.time()
+    # print(f"load {czi_path.name}", end=" ", flush=True)
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+    #     imports = list(executor.map(load_images, img_paths))
+    # C1s, C2s, prds = zip(*imports)
+    # t1 = time.time()
+    # print(f"({t1 - t0:.3f}s)")
     
-    # Format & save results
-    results = pd.DataFrame(results)
-    results = results[[
-        "plate", "replicate", "well", "position", 
-        "C1_count", "C2_count", "C2C1_ratio",
-        "C2_areas", "C2_mean_int", "C2_mean_edt",
-        ]]
-    results.to_csv(
-        exp_path / (czi_path.stem + "_results.csv"), index=False)
+    # Process images ----------------------------------------------------------
+    
+    # t0 = time.time()
+    # print(f"process {czi_path.name}", end=" ", flush=True)
+    # results = Parallel(n_jobs=-1)(
+    #     delayed(_process_images)(i, C1, C2, prd) 
+    #     for (i, C1, C2, prd) in zip(rS, C1s, C2s, prds)
+    #     )    
+    # t1 = time.time()
+    # print(f"({t1 - t0:.3f}s)")
+    
+    # Format & save results ---------------------------------------------------
+    
+    # results = pd.DataFrame(results)
+    # results = results[[
+    #     "plate", "replicate", "well", "position", 
+    #     "C1_count", "C2_count", "C2C1_ratio",
+    #     "C2_areas", "C2_mean_int", "C2_mean_edt",
+    #     ]]
+    # results.to_csv(
+    #     exp_path / (exp_name + "_results.csv"), index=False)
 
 #%% Function : analyse_results() ----------------------------------------------
 
@@ -383,29 +373,29 @@ def analyse_results(data_path):
             
             'p1_r1_2025-03-12_b2_control':
                 'control 0.1% DMSO',
-            'p2_r1_2025-03-12_b2_norfloxacin-002':
+            'p2_r1_2025-03-12_b2_norfloxacin-0.002':
                 'norfloxacin 0.002 µg/ml',
-            'p3_r1_2025-03-12_b2_norfloxacin-008':
+            'p3_r1_2025-03-12_b2_norfloxacin-0.008':
                 'norfloxacin 0.008 µg/ml',
-            'p4_r1_2025-03-12_b2_norfloxacin-032':
+            'p4_r1_2025-03-12_b2_norfloxacin-0.032':
                 'norfloxacin 0.032 µg/ml',
                 
             'p1_r2_2025-03-13_b2_control':
                 'control 0.1% DMSO',
-            'p2_r2_2025-03-13_b2_norfloxacin-002':
+            'p2_r2_2025-03-13_b2_norfloxacin-0.002':
                 'norfloxacin 0.002 µg/ml',
-            'p3_r2_2025-03-13_b2_norfloxacin-008':
+            'p3_r2_2025-03-13_b2_norfloxacin-0.008':
                 'norfloxacin 0.008 µg/ml',
-            'p4_r2_2025-03-13_b2_norfloxacin-032':
+            'p4_r2_2025-03-13_b2_norfloxacin-0.032':
                 'norfloxacin 0.032 µg/ml',
                     
             'p1_r3_2025-03-17_b2_control':
                 'control 0.1% DMSO',
-            'p2_r3_2025-03-17_b2_norfloxacin-002':
+            'p2_r3_2025-03-17_b2_norfloxacin-0.002':
                 'norfloxacin 0.002 µg/ml',
-            'p3_r3_2025-03-17_b2_norfloxacin-008':
+            'p3_r3_2025-03-17_b2_norfloxacin-0.008':
                 'norfloxacin 0.008 µg/ml',
-            'p4_r3_2025-03-17_b2_norfloxacin-032':
+            'p4_r3_2025-03-17_b2_norfloxacin-0.032':
                 'norfloxacin 0.032 µg/ml',
 
             }
@@ -426,11 +416,11 @@ def analyse_results(data_path):
         results_all['plate'] = results_all['plate'].replace(plate_mapping)
         results_all['well' ] = results_all['well' ].replace(well_mapping)   
             
-    global results_all, results_avg, results_avg_pNorm, results_avg_mNorm
+    # Execute -----------------------------------------------------------------
     
     # Initialize
     csv_paths = list(data_path.rglob("*_results.csv"))
-    
+            
     # Load & merge results (results_all)
     results_all = []
     for csv_path in csv_paths:
@@ -669,7 +659,8 @@ if __name__ == "__main__":
         
 #%%
 
-    rS = tuple(np.arange(0, 3168, 20))
+    rS = tuple(np.arange(0, 3168, 50))
+    # rS = "all"
     czi_path = czi_paths[0]
     
     preprocess_images(
