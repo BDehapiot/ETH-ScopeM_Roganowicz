@@ -44,7 +44,7 @@ czi_paths = list(data_path.glob("*.czi"))
 preprocess = 0
 process = 0
 analyse = 0
-plot = 1
+plot = 0
 display = 0
 display_idx = 10
 
@@ -66,6 +66,8 @@ def preprocess_images(
         patch_overlap=16,
         ):
     
+    global C1s, C2s
+    
     # Fixed parameters
     if "_b1_" in czi_path.stem: rf = 1.0
     if "_b2_" in czi_path.stem: rf = 0.5
@@ -83,17 +85,20 @@ def preprocess_images(
     else:
         exp_path.mkdir(parents=True, exist_ok=True)
     
-    # Extract images
+    # Extract images ----------------------------------------------------------
+    
     t0 = time.time()
     print(f"extract {czi_path.name}", end=" ", flush=True)
     _, C1s = extract_data(czi_path, rS=rS, rC=0, zoom=rf)
     _, C2s = extract_data(czi_path, rS=rS, rC=1, zoom=rf)
     C1s = [C1.squeeze() for C1 in C1s]
     C2s = [C2.squeeze() for C2 in C2s]
+
     t1 = time.time()
     print(f"({t1 - t0:.3f}s)")
     
-    # Predict images
+    # Predict images ----------------------------------------------------------
+    
     t0 = time.time()
     print(f"predict {czi_path.name}")
     prds = []
@@ -107,9 +112,17 @@ def preprocess_images(
     t1 = time.time()
     print(f"({t1 - t0:.3f}s)")
     
-    # Save images
+    # Save images -------------------------------------------------------------
+    
     t0 = time.time()
     print(f"save {czi_path.name}", end=" ", flush=True)
+    
+    # Convert data to uint8
+    C1s = [(C1 / 255).astype("uint8") for C1 in C1s]
+    C2s = [(C2 / 255).astype("uint8") for C2 in C2s]
+    prds = [(prd * 255).astype("uint8") for prd in prds]
+    
+    # Save
     if rS == "all": rS = np.arange(0, metadata["nS"])
     for i, C1, C2, prd in zip(rS, C1s, C2s, prds):
         well = metadata["scn_well"][i]
@@ -117,13 +130,14 @@ def preprocess_images(
         img_name = f"{czi_path.stem}_{i:04d}_{well}-{position:03d}"
         io.imsave(
             exp_path / (img_name + "_C1.tif"),
-            C1.astype("uint16"), check_contrast=False)
+            C1, check_contrast=False)
         io.imsave(
             exp_path / (img_name + "_C2.tif"),
-            C2.astype("uint16"), check_contrast=False)
+            C2, check_contrast=False)
         io.imsave(
             exp_path / (img_name + "_predictions.tif"), 
             prd, check_contrast=False)
+    
     t1 = time.time()
     print(f"({t1 - t0:.3f}s)")   
 
@@ -652,3 +666,25 @@ if __name__ == "__main__":
         
     if display:
         display_images(czi_paths[display_idx])
+        
+#%%
+
+    rS = tuple(np.arange(0, 3168, 20))
+    czi_path = czi_paths[0]
+    
+    preprocess_images(
+        czi_path, rS=rS,
+        batch_size=batch_size,
+        patch_overlap=patch_overlap,
+        )
+    
+    C2_min_area = 32
+    C2_min_mean_int = 12
+    C2_min_mean_edt = 20
+    
+    process_images(
+        czi_path,
+        C2_min_area=C2_min_area,
+        C2_min_mean_int=C2_min_mean_int,
+        C2_min_mean_edt=C2_min_mean_edt,
+        )
