@@ -31,19 +31,18 @@ from skimage.morphology import (
 # scipy
 from scipy.ndimage import distance_transform_edt
 
-#%% Paths ---------------------------------------------------------------------
-
-data_path = Path("D:\local_Roganowicz\data\\2025-03_mutants_norfloxacin")
-# data_path = Path(r"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data")
-czi_paths = list(data_path.glob("*.czi"))
-
 #%% Inputs --------------------------------------------------------------------
 
-# 
+# Experiment
+# exp = "2025-03_mutants_norfloxacin"
+exp = "2025-04_mutants_nitrofurantoin"
+data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
+# data_path = Path(rf"\\scopem-idadata.ethz.ch\\BDehapiot\\remote_Roganowicz\\data\\{exp}")
+czi_paths = list(data_path.glob("*.czi"))
 
 # Procedure
-run_preprocess = 1
-run_process = 1
+run_preprocess = 0
+run_process = 0
 run_analyse = 1
 run_plot = 1
 run_display = 0
@@ -57,39 +56,51 @@ patch_overlap = 16
 C2_min_area = 32
 C2_min_mean_int = 12
 C2_min_mean_edt = 20
+params = (C2_min_area, C2_min_mean_int, C2_min_mean_edt)
 
 #%% Mapping -------------------------------------------------------------------
 
-plate_mapping = {
-    
-    'p1_r1_2025-03-12_b2_control':
-        'control 0.1% DMSO',
-    'p2_r1_2025-03-12_b2_norfloxacin-0002':
-        'norfloxacin 0.002 µg/ml',
-    'p3_r1_2025-03-12_b2_norfloxacin-0008':
-        'norfloxacin 0.008 µg/ml',
-    'p4_r1_2025-03-12_b2_norfloxacin-0032':
-        'norfloxacin 0.032 µg/ml',
-        
-    'p1_r2_2025-03-13_b2_control':
-        'control 0.1% DMSO',
-    'p2_r2_2025-03-13_b2_norfloxacin-0002':
-        'norfloxacin 0.002 µg/ml',
-    'p3_r2_2025-03-13_b2_norfloxacin-0008':
-        'norfloxacin 0.008 µg/ml',
-    'p4_r2_2025-03-13_b2_norfloxacin-0032':
-        'norfloxacin 0.032 µg/ml',
-            
-    'p1_r3_2025-03-17_b2_control':
-        'control 0.1% DMSO',
-    'p2_r3_2025-03-17_b2_norfloxacin-0002':
-        'norfloxacin 0.002 µg/ml',
-    'p3_r3_2025-03-17_b2_norfloxacin-0008':
-        'norfloxacin 0.008 µg/ml',
-    'p4_r3_2025-03-17_b2_norfloxacin-0032':
-        'norfloxacin 0.032 µg/ml',
+if exp == "2025-03_mutants_norfloxacin":
 
-    }
+    plate_mapping = {
+        
+        'p1_r1_2025-03-12_b2_control'          : 'control 0.1% DMSO',
+        'p2_r1_2025-03-12_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r1_2025-03-12_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r1_2025-03-12_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+            
+        'p1_r2_2025-03-13_b2_control'          : 'control 0.1% DMSO',
+        'p2_r2_2025-03-13_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r2_2025-03-13_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r2_2025-03-13_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+                
+        'p1_r3_2025-03-17_b2_control'          : 'control 0.1% DMSO',
+        'p2_r3_2025-03-17_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r3_2025-03-17_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r3_2025-03-17_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+    
+        }
+    
+if exp == "2025-04_mutants_nitrofurantoin":
+
+    plate_mapping = {
+        
+        'p1_r1_2025-04-03_b2_control'             : 'control 0.1% DMSO',
+        'p2_r1_2025-04-03_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
+        'p3_r1_2025-04-03_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
+        'p4_r1_2025-04-03_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+            
+        'p1_r2_2025-04-10_b2_control'             : 'control 0.1% DMSO',
+        'p2_r2_2025-04-10_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
+        'p3_r2_2025-04-10_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
+        'p4_r2_2025-04-10_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+                
+        'p1_r3_2025-04-22_b2_control'             : 'control 0.1% DMSO',
+        'p2_r3_2025-04-22_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
+        'p3_r3_2025-04-22_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
+        'p4_r3_2025-04-22_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+    
+        }
 
 well_mapping = {
     
@@ -628,9 +639,7 @@ def display(czi_path, params=(32, 12, 20)):
 if __name__ == "__main__":
     
     for czi_path in czi_paths:
-        
-        # print(czi_path.stem)
-    
+
         if run_preprocess:
             preprocess(
                 czi_path, rS=rS,
@@ -647,12 +656,12 @@ if __name__ == "__main__":
                 )
             
     if run_analyse:
-        analyse_results(data_path)
+        analyse_results(data_path, params=params)
         
     if run_plot:
-        plot(data_path, tag="")
-        plot(data_path, tag="_pNorm")
-        plot(data_path, tag="_mNorm")
+        plot(data_path, params=params, tag="")
+        plot(data_path, params=params, tag="_pNorm")
+        plot(data_path, params=params, tag="_mNorm")
         
     if run_display:
-        display(czi_paths[display_idx])
+        display(czi_paths[display_idx], params=params)
