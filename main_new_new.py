@@ -43,10 +43,10 @@ czi_paths = list(data_path.glob("*.czi"))
 # Procedure
 run_preprocess = 0
 run_process = 0
-run_analyse = 1
-run_plot = 1
-run_display = 0
-display_idx = 10
+run_analyse = 0
+run_plot = 0
+run_display = 1
+display_idx = 0
 
 # Process parameters
 rS = "all"
@@ -86,19 +86,19 @@ if exp == "2025-04_mutants_nitrofurantoin":
     plate_mapping = {
         
         'p1_r1_2025-04-03_b2_control'             : 'control 0.1% DMSO',
-        'p2_r1_2025-04-03_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
-        'p3_r1_2025-04-03_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
-        'p4_r1_2025-04-03_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+        'p2_r1_2025-04-03_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r1_2025-04-03_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r1_2025-04-03_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
             
         'p1_r2_2025-04-10_b2_control'             : 'control 0.1% DMSO',
-        'p2_r2_2025-04-10_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
-        'p3_r2_2025-04-10_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
-        'p4_r2_2025-04-10_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+        'p2_r2_2025-04-10_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r2_2025-04-10_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r2_2025-04-10_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
                 
         'p1_r3_2025-04-22_b2_control'             : 'control 0.1% DMSO',
-        'p2_r3_2025-04-22_b2_nitrofurantoin-0002' : 'nitrofurantoin 0.002 µg/ml',
-        'p3_r3_2025-04-22_b2_nitrofurantoin-0008' : 'nitrofurantoin 0.008 µg/ml',
-        'p4_r3_2025-04-22_b2_nitrofurantoin-0032' : 'nitrofurantoin 0.032 µg/ml',
+        'p2_r3_2025-04-22_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r3_2025-04-22_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r3_2025-04-22_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
     
         }
 
@@ -406,11 +406,13 @@ def analyse_results(data_path, params=(32, 12, 20)):
             avg, std, sem = np.nan, np.nan, np.nan
         return avg, std, sem
             
-    def convert_mapping(results_all, plate_mapping, well_mapping):
-        results_all['plate'] = results_all['plate'].replace(plate_mapping)
-        results_all['well' ] = results_all['well' ].replace(well_mapping)   
+    def convert_mapping(results, plate_mapping, well_mapping):
+        results['plate'] = results['plate'].replace(plate_mapping)
+        results['well' ] = results['well' ].replace(well_mapping)   
             
     # Execute -----------------------------------------------------------------
+    
+    global results_all, results_avg, df, plate, replicate
     
     # Initialize
     params = f"{params[0]}-{params[1]}-{params[2]}"
@@ -487,12 +489,13 @@ def analyse_results(data_path, params=(32, 12, 20)):
     # Convert mapping
     convert_mapping(results_all, plate_mapping, well_mapping)
     convert_mapping(results_avg, plate_mapping, well_mapping)
-    
+       
     # Norm. avg. results (pNorm & mNorm)
     
     results_avg_pNorm, results_avg_mNorm = [], []
     for plate in np.unique(results_avg["plate"]):
         for replicate in np.unique(results_avg["replicate"]):
+
             df = results_avg[
                 (results_avg['plate'] == plate) & 
                 (results_avg['replicate'] == replicate)
