@@ -597,6 +597,12 @@ def plot(data_path, params=(32, 12, 20), tag=""):
 
 def display(czi_path, params=(32, 12, 20)):
        
+    '''
+    Opening display images on MacOS doesn't work because C1, C2 and display
+    don't match. This is probably a problem of name order.
+    
+    '''
+    
     def load_images(display_path):
         return io.imread(display_path)
 
@@ -612,7 +618,7 @@ def display(czi_path, params=(32, 12, 20)):
     title = f"display() - {czi_path.name}"
     print(title)
     print("-" * len(title))
-    
+        
     t0 = time.time()
     print("load :", end=" ", flush=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
