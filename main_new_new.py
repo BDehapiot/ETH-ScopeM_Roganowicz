@@ -37,7 +37,8 @@ from scipy.ndimage import distance_transform_edt
 # exp = "2025-03_mutants_norfloxacin"
 exp = "2025-04_mutants_nitrofurantoin"
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
-# data_path = Path(rf"\\scopem-idadata.ethz.ch\\BDehapiot\\remote_Roganowicz\\data\\{exp}")
+# data_path = Path(rf"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data\\{exp}")
+# data_path = Path(f"/Volumes/BDehapiot/remote_Roganowicz/data/{exp}") # MacOS
 czi_paths = list(data_path.glob("*.czi"))
 
 # Procedure
