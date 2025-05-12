@@ -34,8 +34,8 @@ from scipy.ndimage import distance_transform_edt
 #%% Inputs --------------------------------------------------------------------
 
 # Experiment
-exp = "2025-03_mutants_norfloxacin"
-# exp = "2025-04_mutants_nitrofurantoin"
+# exp = "2025-03_mutants_norfloxacin"
+exp = "2025-04_mutants_nitrofurantoin"
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 # data_path = Path(rf"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data\\{exp}")
 # data_path = Path(f"/Volumes/BDehapiot/remote_Roganowicz/data/{exp}") # MacOS
@@ -44,9 +44,9 @@ czi_paths = list(data_path.glob("*.czi"))
 # Procedure
 run_preprocess = 0
 run_process = 0
-run_analyse = 0
-run_plot = 0
-run_display = 1
+run_analyse = 1
+run_plot = 1
+run_display = 0
 display_idx = 0
 
 # Process parameters
@@ -389,9 +389,9 @@ def process(
     results.to_csv(
         preprocess_path / (czi_path.stem + "_results-" + params + ".csv"), index=False)
 
-#%% Function : analyse_results() ----------------------------------------------
+#%% Function : analyse() ------------------------------------------------------
 
-def analyse_results(data_path, params=(32, 12, 20)):
+def analyse(data_path, params=(32, 12, 20)):
         
     def format_list(df, key):
         lst = df[key].explode().tolist()
@@ -441,8 +441,7 @@ def analyse_results(data_path, params=(32, 12, 20)):
     
     results_avg = {
         "plate" : [], "replicate" : [], "well" : [],
-        "C1_count_cum"    : [], "C2_count_cum"    : [],
-        "C2C1_ratio_avg"  : [], "C2C1_ratio_std"  : [], "C2C1_ratio_sem"  : [],
+        "C1_count_cum"    : [], "C2_count_cum"    : [], "C2C1_ratio"      : [],
         "C2_areas_avg"    : [], "C2_areas_std"    : [], "C2_areas_sem"    : [],
         "C2_mean_int_avg" : [], "C2_mean_int_std" : [], "C2_mean_int_sem" : [],
         "C2_mean_edt_avg" : [], "C2_mean_edt_std" : [], "C2_mean_edt_sem" : [],
@@ -462,7 +461,7 @@ def analyse_results(data_path, params=(32, 12, 20)):
         C2_mean_edt = format_list(df, 'C2_mean_edt')
         C1_count_cum = np.sum(df["C1_count"])
         C2_count_cum = np.sum(df["C2_count"])
-        C1C2_ratio_stats = get_stats(list(df["C2C1_ratio"]))
+        C2C1_ratio = C2_count_cum / C1_count_cum
         C2_areas_stats = get_stats(C2_areas)
         C2_mean_int_stats = get_stats(C2_mean_int)
         C2_mean_edt_stats = get_stats(C2_mean_edt)
@@ -472,9 +471,7 @@ def analyse_results(data_path, params=(32, 12, 20)):
         results_avg['well'           ].append(row['well' ])
         results_avg['C1_count_cum'   ].append(C1_count_cum)
         results_avg['C2_count_cum'   ].append(C2_count_cum)
-        results_avg['C2C1_ratio_avg' ].append(C1C2_ratio_stats[0])
-        results_avg['C2C1_ratio_std' ].append(C1C2_ratio_stats[1])
-        results_avg['C2C1_ratio_sem' ].append(C1C2_ratio_stats[2])
+        results_avg['C2C1_ratio'     ].append(C2C1_ratio)
         results_avg['C2_areas_avg'   ].append(C2_areas_stats[0])
         results_avg['C2_areas_std'   ].append(C2_areas_stats[1])
         results_avg['C2_areas_sem'   ].append(C2_areas_stats[2])
@@ -532,7 +529,7 @@ def plot(data_path, params=(32, 12, 20), tag=""):
     plates = np.unique(results["plate"])
     nPlates = len(plates)
 
-    data = ["C2C1_ratio", "C2_areas", "C2_mean_int"]
+    data = ["C2C1_ratio", "C2_areas_avg", "C2_mean_int_avg"]
     for dat in data:
         
         # Initialize plot
@@ -542,9 +539,9 @@ def plot(data_path, params=(32, 12, 20), tag=""):
         
         # Merge replicates
         results_avg = results.groupby(
-            ['plate', 'well'], sort=False, as_index=False)[f'{dat}_avg'].mean()
+            ['plate', 'well'], sort=False, as_index=False)[dat].mean()
         results_sem = results.groupby(
-            ['plate', 'well'], sort=False, as_index=False)[f'{dat}_avg'].sem()
+            ['plate', 'well'], sort=False, as_index=False)[dat].sem()
                 
         for ax, plate in zip(axes, plates):
             
@@ -554,8 +551,8 @@ def plot(data_path, params=(32, 12, 20), tag=""):
             wells = avgDf["well"]
             x = np.arange(len(wells))
             
-            avg = np.array(avgDf[f"{dat}_avg"])
-            sem = np.array(semDf[f"{dat}_avg"])
+            avg = np.array(avgDf[dat])
+            sem = np.array(semDf[dat])
             
             # Plot bars
             ax.bar(
@@ -569,13 +566,13 @@ def plot(data_path, params=(32, 12, 20), tag=""):
                 values = results[
                     (results['plate'] == plate) &
                     (results['replicate']  == rep)
-                    ][f"{dat}_avg"].values
+                    ][dat].values
                 
                 # Plot dots
                 ax.scatter(x, values, label=rep, s=30)
                 
             # Formatting
-            ax.set_ylim(0, np.max(results[f"{dat}_avg"]) * 1.1)            
+            ax.set_ylim(0, np.max(results[dat]) * 1.1)            
             ax.set_xticks(x)
             ax.set_xticklabels(wells, rotation=90)
             ax.set_ylabel(dat)
@@ -666,7 +663,7 @@ if __name__ == "__main__":
                 )
             
     if run_analyse:
-        analyse_results(data_path, params=params)
+        analyse(data_path, params=params)
         
     if run_plot:
         plot(data_path, params=params, tag="")
