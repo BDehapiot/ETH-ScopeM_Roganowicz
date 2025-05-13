@@ -35,3 +35,4 @@ dependencies:
     - albumentations
     - segmentation-models
     - tensorflow==2.10
+    - h5py==3.11.0

@@ -34,9 +34,10 @@ from scipy.ndimage import distance_transform_edt
 #%% Inputs --------------------------------------------------------------------
 
 # Experiment
-# exp = "2025-03_mutants_norfloxacin"
-exp = "2025-04_mutants_nitrofurantoin"
-data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
+exp = "2025-03_mutants_norfloxacin"
+# exp = "2025-04_mutants_nitrofurantoin"
+# data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
+data_path = Path.cwd().parent / "data" / f"{exp}"
 # data_path = Path(rf"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data\\{exp}")
 # data_path = Path(f"/Volumes/BDehapiot/remote_Roganowicz/data/{exp}") # MacOS
 czi_paths = list(data_path.glob("*.czi"))
@@ -44,8 +45,8 @@ czi_paths = list(data_path.glob("*.czi"))
 # Procedure
 run_preprocess = 0
 run_process = 0
-run_analyse = 1
-run_plot = 1
+run_analyse = 0
+run_plot = 0
 run_display = 0
 display_idx = 0
 
