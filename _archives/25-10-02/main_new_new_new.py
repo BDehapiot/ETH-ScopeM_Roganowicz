@@ -35,8 +35,7 @@ from scipy.ndimage import distance_transform_edt
 
 # Experiment
 # exp = "2025-03_mutants_norfloxacin"
-# exp = "2025-04_mutants_nitrofurantoin"
-exp = "2025-09_parental_yhjC"
+exp = "2025-04_mutants_nitrofurantoin"
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 # data_path = Path.cwd().parent / "data" / f"{exp}"
 # data_path = Path(rf"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data\\{exp}")
@@ -49,7 +48,7 @@ run_process = 0
 run_analyse = 0
 run_plot = 0
 run_display = 1
-display_idx = 1
+display_idx = 11
 
 # Process parameters
 rS = "all"
@@ -84,19 +83,6 @@ if exp == "2025-03_mutants_norfloxacin":
     
         }
     
-    well_mapping = {
-        
-        'A01': 'parental', 'A02': 'ΔfimH', 'A03': 'ΔmotA', 
-        'A04': 'ΔmotB'   , 'A05': 'ΔfliA', 'A06': 'ΔfliC',
-        'B01': 'ΔcsgA'   , 'B02': 'ΔcsgB', 'B03': 'Δkps' ,
-        'B04': 'Δneu'    , 'B05': 'Δgspl', 'B06': 'ΔyhjM',    
-        'C01': 'Δfiu'    , 'C02': 'ΔnikA', 'C03': 'Δyhjk', 
-        'C04': 'ΔsfaA'   , 'C05': 'ΔyeaP', 'C06': 'ΔyagX',
-        'D01': 'ΔluxS'   , 'D02': 'ΔcheA', 'D03': 'Δtsr' , 
-        'D04': 'ΔrfaQ'   , 'D05': 'ΔyaiW', 'D06': 'ΔompW',
-        
-        }
-    
 if exp == "2025-04_mutants_nitrofurantoin":
 
     plate_mapping = {
@@ -118,35 +104,18 @@ if exp == "2025-04_mutants_nitrofurantoin":
     
         }
 
-    well_mapping = {
-        
-        'A01': 'parental', 'A02': 'ΔfimH', 'A03': 'ΔmotA', 
-        'A04': 'ΔmotB'   , 'A05': 'ΔfliA', 'A06': 'ΔfliC',
-        'B01': 'ΔcsgA'   , 'B02': 'ΔcsgB', 'B03': 'Δkps' ,
-        'B04': 'Δneu'    , 'B05': 'Δgspl', 'B06': 'ΔyhjM',    
-        'C01': 'Δfiu'    , 'C02': 'ΔnikA', 'C03': 'Δyhjk', 
-        'C04': 'ΔsfaA'   , 'C05': 'ΔyeaP', 'C06': 'ΔyagX',
-        'D01': 'ΔluxS'   , 'D02': 'ΔcheA', 'D03': 'Δtsr' , 
-        'D04': 'ΔrfaQ'   , 'D05': 'ΔyaiW', 'D06': 'ΔompW',
-        
-        }
+well_mapping = {
     
-if exp == "2025-09_parental_yhjC":
+    'A01': 'parental', 'A02': 'ΔfimH', 'A03': 'ΔmotA', 
+    'A04': 'ΔmotB'   , 'A05': 'ΔfliA', 'A06': 'ΔfliC',
+    'B01': 'ΔcsgA'   , 'B02': 'ΔcsgB', 'B03': 'Δkps' ,
+    'B04': 'Δneu'    , 'B05': 'Δgspl', 'B06': 'ΔyhjM',    
+    'C01': 'Δfiu'    , 'C02': 'ΔnikA', 'C03': 'Δyhjk', 
+    'C04': 'ΔsfaA'   , 'C05': 'ΔyeaP', 'C06': 'ΔyagX',
+    'D01': 'ΔluxS'   , 'D02': 'ΔcheA', 'D03': 'Δtsr' , 
+    'D04': 'ΔrfaQ'   , 'D05': 'ΔyaiW', 'D06': 'ΔompW',
     
-    plate_mapping = {
-        
-        'p1_r1_2025-09-01_b2_control' : 'control',
-        'p1_r2_2025-09-01_b2_control' : 'control',
-        'p1_r3_2025-09-01_b2_control' : 'control',
-
-        }
-    
-    well_mapping = {
-        
-        'B02': 'parental', 'B03': 'parental', 'B04': 'parental',
-        'C02': 'ΔyhjC'   , 'C03': 'ΔyhjC'   , 'C04': 'ΔyhjC'   ,
-        
-        }
+    }
 
 #%% Function : preprocess() ---------------------------------------------------
 
@@ -444,7 +413,9 @@ def analyse(data_path, params=(32, 12, 20)):
         results['well' ] = results['well' ].replace(well_mapping)   
             
     # Execute -----------------------------------------------------------------
-
+    
+    global results_all, results_avg, df, plate, replicate
+    
     # Initialize
     params = f"{params[0]}-{params[1]}-{params[2]}"
     csv_paths = list(data_path.rglob(f"*_results-{params}.csv"))
@@ -523,6 +494,7 @@ def analyse(data_path, params=(32, 12, 20)):
     results_avg_pNorm, results_avg_mNorm = [], []
     for plate in np.unique(results_avg["plate"]):
         for replicate in np.unique(results_avg["replicate"]):
+
             df = results_avg[
                 (results_avg['plate'] == plate) & 
                 (results_avg['replicate'] == replicate)
@@ -551,8 +523,6 @@ def analyse(data_path, params=(32, 12, 20)):
 
 def plot(data_path, params=(32, 12, 20), tag=""):
 
-    global plates, nPlates, fig, axes, results_avg, x, values, results, wells
-
     # Initialize
     params = f"{params[0]}-{params[1]}-{params[2]}"
     csv_path = list(data_path.rglob(f"*results-{params}_avg{tag}.csv"))[0]
@@ -567,8 +537,6 @@ def plot(data_path, params=(32, 12, 20), tag=""):
         fig, axes = plt.subplots(nPlates, 1, figsize=(8, 3 * nPlates))
         plot_stem = f"plot_{csv_path.stem}_{dat}"
         fig.suptitle(plot_stem, x=0.01, y=0.99, ha='left', fontsize=16)
-        if nPlates == 1:
-            axes = [axes]
         
         # Merge replicates
         results_avg = results.groupby(
