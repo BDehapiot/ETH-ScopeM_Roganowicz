@@ -37,6 +37,7 @@ from scipy.ndimage import distance_transform_edt
 # exp = "2025-03_mutants_norfloxacin"
 # exp = "2025-04_mutants_nitrofurantoin"
 exp = "2025-09_parental_yhjC"
+
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 # data_path = Path.cwd().parent / "data" / f"{exp}"
 # data_path = Path(rf"\\scopem-idadata.ethz.ch\BDehapiot\remote_Roganowicz\data\\{exp}")
@@ -47,18 +48,44 @@ czi_paths = list(data_path.glob("*.czi"))
 run_preprocess = 0
 run_process = 0
 run_analyse = 0
-run_plot = 0
-run_display = 1
-display_idx = 1
+run_plot = 1
+run_display = 0
+display_idx = 0
 
 # Process parameters
-rS = "all"
-# rS = tuple(np.arange(0, 3168, 20))
+# rS = "all"
+rS = tuple(np.arange(0, 3168, 20))
 batch_size = 500
 patch_overlap = 16
-C2_min_area = 32
-C2_min_mean_int = 24
-C2_min_mean_edt = 20
+ 
+if exp == "2025-03_mutants_norfloxacin": 
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 1
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+if exp == "2025-04_mutants_nitrofurantoin":
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 1
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+if exp == "2025-09_parental_yhjC":
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 0.5
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+    
 params = (C2_min_area, C2_min_mean_int, C2_min_mean_edt)
 
 #%% Mapping -------------------------------------------------------------------
@@ -238,6 +265,11 @@ def preprocess(
 
 def process(
         czi_path,
+        lmax_dist=4,
+        lmax_prom=0.6,
+        C2_dog_sigma1=1,
+        C2_dog_sigma2=8,
+        C2_dog_thresh=1,
         C2_min_area=32,
         C2_min_mean_int=12,
         C2_min_mean_edt=20,
@@ -252,12 +284,6 @@ def process(
         return C1, C2, prd
 
     def _process_images(i, C1, C2, prd):
-        
-        # Parameters
-        lmax_dist, lmax_prom = 4, 0.6
-        C2_dog_sigma1 = 1 
-        C2_dog_sigma2 = 8
-        C2_dog_thresh = 1
 
         # Initialize
         replicate = czi_path.stem.split("_")[1]
@@ -551,7 +577,8 @@ def analyse(data_path, params=(32, 12, 20)):
 
 def plot(data_path, params=(32, 12, 20), tag=""):
 
-    global plates, nPlates, fig, axes, results_avg, x, values, results, wells
+    global plates, rep, nPlates, axes, results_avg, x, avg, values, results, wells, avgDf
+    
 
     # Initialize
     params = f"{params[0]}-{params[1]}-{params[2]}"
@@ -559,6 +586,8 @@ def plot(data_path, params=(32, 12, 20), tag=""):
     results = pd.read_csv(csv_path)
     plates = np.unique(results["plate"])
     nPlates = len(plates)
+    wells = np.unique(results["well"])
+    nWells = len(wells)
 
     data = ["C2C1_ratio", "C2_areas_avg", "C2_mean_int_avg"]
     for dat in data:
@@ -570,58 +599,98 @@ def plot(data_path, params=(32, 12, 20), tag=""):
         if nPlates == 1:
             axes = [axes]
         
-        # Merge replicates
-        results_avg = results.groupby(
-            ['plate', 'well'], sort=False, as_index=False)[dat].mean()
-        results_sem = results.groupby(
-            ['plate', 'well'], sort=False, as_index=False)[dat].sem()
+        if exp in [
+                "2025-03_mutants_norfloxacin", 
+                "2025-04_mutants_nitrofurantoin",
+                ]: 
+            
+            # Merge replicates
+            results_avg = results.groupby(
+                ['plate', 'well'], sort=False, as_index=False)[dat].mean()
+            results_sem = results.groupby(
+                ['plate', 'well'], sort=False, as_index=False)[dat].sem()
                 
-        for ax, plate in zip(axes, plates):
-            
-            # Format data
-            avgDf = results_avg[results_avg['plate'] == plate]
-            semDf = results_sem[results_sem['plate'] == plate]
-            wells = avgDf["well"]
-            x = np.arange(len(wells))
-            
-            avg = np.array(avgDf[dat])
-            sem = np.array(semDf[dat])
-            
-            # Plot bars
-            ax.bar(
-                x, avg, yerr=sem, capsize=5,
-                color="lightgray", alpha=1, label=dat,
-                )
-            
-            for r, rep in enumerate(np.unique(results["replicate"])):
+            for ax, plate in zip(axes, plates):
                 
                 # Format data
-                values = results[
-                    (results['plate'] == plate) &
-                    (results['replicate']  == rep)
-                    ][dat].values
+                avgDf = results_avg[results_avg['plate'] == plate]
+                semDf = results_sem[results_sem['plate'] == plate]
+                wells = avgDf["well"]
                 
-                # Plot dots
-                ax.scatter(x, values, label=rep, s=30)
+                x = np.arange(len(wells))
+                avg = np.array(avgDf[dat])
+                sem = np.array(semDf[dat])
                 
-            # Formatting
-            ax.set_ylim(0, np.max(results[dat]) * 1.1)            
-            ax.set_xticks(x)
-            ax.set_xticklabels(wells, rotation=90)
-            ax.set_ylabel(dat)
-            ax.set_title(plate)
-            ax.legend(
-                bbox_to_anchor=(1.05, 0.5),
-                loc="center left",
-                ncol=1,
-                borderaxespad=0.0
-                )
+                # Plot bars
+                ax.bar(
+                    x, avg, yerr=sem, capsize=5,
+                    color="lightgray", alpha=1, label=dat,
+                    )
+                
+                for r, rep in enumerate(np.unique(results["replicate"])):
+                    
+                    # Format data
+                    values = results[
+                        (results['plate'] == plate) &
+                        (results['replicate']  == rep)
+                        ][dat].values
+                    
+                    # Plot dots
+                    ax.scatter(x, values, label=rep, s=30)
+                    
+                # Formatting
+                ax.set_ylim(0, np.max(results[dat]) * 1.1)            
+                ax.set_xticks(x)
+                ax.set_xticklabels(wells, rotation=90)
+                ax.set_ylabel(dat)
+                ax.set_title(plate)
+                ax.legend(
+                    bbox_to_anchor=(1.05, 0.5),
+                    loc="center left",
+                    ncol=1,
+                    borderaxespad=0.0
+                    )
+                
+        elif exp in ["2025-09_parental_yhjC"]:
             
-        # Save
-        plt.tight_layout()
-        plt.savefig(csv_path.parent / (plot_stem + ".png"), format="png")
-        plt.close(fig)
-        # plt.show()
+            # Merge replicates
+            results_avg = results.groupby(
+                ['plate', 'replicate'], sort=False, as_index=False)[dat].mean()
+            results_sem = results.groupby(
+                ['plate', 'replicate'], sort=False, as_index=False)[dat].sem()
+            
+            # x = np.arange(len(wells))
+            # avg = np.array(results_avg[dat])
+            # sem = np.array(results_sem[dat])
+                
+            # # Plot bars
+            # ax.bar(
+            #     x, avg, yerr=sem, capsize=5,
+            #     color="lightgray", alpha=1, label=dat,
+            #     )
+            
+            # for ax, well in zip(axes, wells):
+                
+            #     # Format data
+            #     avgDf = results_avg[results_avg['well'] == well]
+            #     semDf = results_sem[results_sem['well'] == well]
+            #     # wells = avgDf["well"]
+            #     x = np.arange(len(wells))
+                
+            #     avg = np.array(avgDf[dat])
+            #     sem = np.array(semDf[dat])
+                
+                # # Plot bars
+                # ax.bar(
+                #     x, avg, yerr=sem, capsize=5,
+                #     color="lightgray", alpha=1, label=dat,
+                #     )
+            
+        # # Save
+        # plt.tight_layout()
+        # plt.savefig(csv_path.parent / (plot_stem + ".png"), format="png")
+        # plt.close(fig)
+        # # plt.show()
         
 #%% Function : display() ------------------------------------------------------
 
@@ -690,6 +759,11 @@ if __name__ == "__main__":
         if run_process:
             process(
                 czi_path,
+                lmax_dist=lmax_dist,
+                lmax_prom=lmax_prom,
+                C2_dog_sigma1=C2_dog_sigma1,
+                C2_dog_sigma2=C2_dog_sigma2,
+                C2_dog_thresh=C2_dog_thresh,
                 C2_min_area=C2_min_area,
                 C2_min_mean_int=C2_min_mean_int,
                 C2_min_mean_edt=C2_min_mean_edt,
@@ -700,8 +774,8 @@ if __name__ == "__main__":
         
     if run_plot:
         plot(data_path, params=params, tag="")
-        plot(data_path, params=params, tag="_pNorm")
-        plot(data_path, params=params, tag="_mNorm")
+        # plot(data_path, params=params, tag="_pNorm")
+        # plot(data_path, params=params, tag="_mNorm")
         
     if run_display:
         display(czi_paths[display_idx], params=params)
