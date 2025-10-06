@@ -46,8 +46,8 @@ czi_paths = list(data_path.glob("*.czi"))
 
 # Procedure
 run_preprocess = 0
-run_process = 0
-run_analyse = 0
+run_process = 1
+run_analyse = 1
 run_plot = 1
 run_display = 0
 display_idx = 0
@@ -577,9 +577,6 @@ def analyse(data_path, params=(32, 12, 20)):
 
 def plot(data_path, params=(32, 12, 20), tag=""):
 
-    global plates, rep, nPlates, axes, results_avg, x, avg, values, results, wells, avgDf
-    
-
     # Initialize
     params = f"{params[0]}-{params[1]}-{params[2]}"
     csv_path = list(data_path.rglob(f"*results-{params}_avg{tag}.csv"))[0]
@@ -587,22 +584,19 @@ def plot(data_path, params=(32, 12, 20), tag=""):
     plates = np.unique(results["plate"])
     nPlates = len(plates)
     wells = np.unique(results["well"])
-    nWells = len(wells)
 
     data = ["C2C1_ratio", "C2_areas_avg", "C2_mean_int_avg"]
     for dat in data:
-        
-        # Initialize plot
-        fig, axes = plt.subplots(nPlates, 1, figsize=(8, 3 * nPlates))
-        plot_stem = f"plot_{csv_path.stem}_{dat}"
-        fig.suptitle(plot_stem, x=0.01, y=0.99, ha='left', fontsize=16)
-        if nPlates == 1:
-            axes = [axes]
-        
+               
         if exp in [
                 "2025-03_mutants_norfloxacin", 
                 "2025-04_mutants_nitrofurantoin",
                 ]: 
+            
+            # Initialize plot
+            fig, axes = plt.subplots(nPlates, 1, figsize=(8, 3 * nPlates))
+            plot_stem = f"plot_{csv_path.stem}_{dat}"
+            fig.suptitle(plot_stem, x=0.01, y=0.99, ha='left', fontsize=16)
             
             # Merge replicates
             results_avg = results.groupby(
@@ -651,46 +645,58 @@ def plot(data_path, params=(32, 12, 20), tag=""):
                     borderaxespad=0.0
                     )
                 
+                plt.tight_layout()
+                                
         elif exp in ["2025-09_parental_yhjC"]:
             
+            # Initialize plot
+            fig, ax = plt.subplots(1, 1, figsize=(5, 3))
+            plot_stem = f"plot_{csv_path.stem}_{dat}"
+
             # Merge replicates
             results_avg = results.groupby(
-                ['plate', 'replicate'], sort=False, as_index=False)[dat].mean()
+                ['well', 'replicate'], sort=False, as_index=False)[dat].mean()
             results_sem = results.groupby(
-                ['plate', 'replicate'], sort=False, as_index=False)[dat].sem()
+                ['well', 'replicate'], sort=False, as_index=False)[dat].sem()
+                        
+            for x, well in enumerate(wells):
+
+                avg = results_avg[results_avg['well'] == well][dat].mean() 
+                sem = results_avg[results_avg['well'] == well][dat].sem() 
+                values = results_avg[results_avg['well'] == well][dat].values
+                
+                # Plot bars
+                ax.bar(
+                    x, avg, yerr=sem, capsize=5,
+                    color="lightgray", alpha=1, label=dat,
+                    )
             
-            # x = np.arange(len(wells))
-            # avg = np.array(results_avg[dat])
-            # sem = np.array(results_sem[dat])
-                
-            # # Plot bars
-            # ax.bar(
-            #     x, avg, yerr=sem, capsize=5,
-            #     color="lightgray", alpha=1, label=dat,
-            #     )
+                # Plot dots
+                colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+                for v, val in enumerate(values):
+                    ax.scatter(
+                        x, val, label=f"r{v + 1}", color=colors[v], s=50)
             
-            # for ax, well in zip(axes, wells):
+                # Formatting
+                ax.set_ylim(0, np.max(results_avg[dat]) * 1.1)            
+                ax.set_xticks([0, 1])
+                ax.set_xticklabels(wells, rotation=0)
+                ax.set_ylabel(dat)
+                ax.set_title(plot_stem)
+                if x == 0:
+                    ax.legend(
+                        bbox_to_anchor=(1.05, 0.5),
+                        loc="center left",
+                        ncol=1,
+                        borderaxespad=0.0
+                        )
                 
-            #     # Format data
-            #     avgDf = results_avg[results_avg['well'] == well]
-            #     semDf = results_sem[results_sem['well'] == well]
-            #     # wells = avgDf["well"]
-            #     x = np.arange(len(wells))
-                
-            #     avg = np.array(avgDf[dat])
-            #     sem = np.array(semDf[dat])
-                
-                # # Plot bars
-                # ax.bar(
-                #     x, avg, yerr=sem, capsize=5,
-                #     color="lightgray", alpha=1, label=dat,
-                #     )
+                plt.tight_layout()
             
-        # # Save
-        # plt.tight_layout()
-        # plt.savefig(csv_path.parent / (plot_stem + ".png"), format="png")
-        # plt.close(fig)
-        # # plt.show()
+        # Save
+        plt.savefig(csv_path.parent / (plot_stem + ".png"), format="png")
+        plt.close(fig)
+        # plt.show()
         
 #%% Function : display() ------------------------------------------------------
 
@@ -774,8 +780,8 @@ if __name__ == "__main__":
         
     if run_plot:
         plot(data_path, params=params, tag="")
-        # plot(data_path, params=params, tag="_pNorm")
-        # plot(data_path, params=params, tag="_mNorm")
+        plot(data_path, params=params, tag="_pNorm")
+        plot(data_path, params=params, tag="_mNorm")
         
     if run_display:
         display(czi_paths[display_idx], params=params)
