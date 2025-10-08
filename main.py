@@ -35,9 +35,9 @@ from scipy.ndimage import distance_transform_edt
 
 # Paths -----------------------------------------------------------------------
 
-exp = "2025-03_mutants_norfloxacin"
+# exp = "2025-03_mutants_norfloxacin"
 # exp = "2025-04_mutants_nitrofurantoin"
-# exp = "2025-09_parental_yhjC"
+exp = "2025-09_parental_yhjC"
 
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 # data_path = Path.cwd().parent / "data" / f"{exp}"
@@ -83,7 +83,7 @@ if exp == "2025-09_parental_yhjC":
     lmax_prom = 0.6
     C2_dog_sigma1 = 1 
     C2_dog_sigma2 = 8
-    C2_dog_thresh = 0.5
+    C2_dog_thresh = 0.5 # changed parameter
     C2_min_area = 32
     C2_min_mean_int = 24
     C2_min_mean_edt = 20
