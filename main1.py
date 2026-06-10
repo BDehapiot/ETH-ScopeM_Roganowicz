@@ -12,7 +12,6 @@ from pathlib import Path
 import concurrent.futures
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
-from inputs import inputs
 
 # czitools
 from czitools import extract_metadata, extract_data
@@ -38,9 +37,7 @@ from scipy.ndimage import distance_transform_edt
 
 # exp = "2025-03_mutants_norfloxacin"
 # exp = "2025-04_mutants_nitrofurantoin"
-# exp = "2025-09_parental_yhjC"
-exp = "2026-05_bcsA_complemented_strains"
-# exp = "???"
+exp = "2025-09_parental_yhjC"
 
 data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 # data_path = Path.cwd().parent / "data" / f"{exp}"
@@ -49,7 +46,7 @@ data_path = Path(f"D:\\local_Roganowicz\\data\\{exp}")
 
 # Procedure -------------------------------------------------------------------
 
-run_preprocess = 0
+run_preprocess = 1
 run_process = 0
 run_analyse = 0
 run_plot = 0
@@ -62,20 +59,123 @@ rS = "all"
 # rS = tuple(np.arange(0, 3168, 20))
 batch_size = 500
 patch_overlap = 16
-
-#%% Initialize ----------------------------------------------------------------
-
-lmax_dist = inputs[exp]["parameters"]["lmax_dist"]
-lmax_prom = inputs[exp]["parameters"]["lmax_prom"]
-C2_dog_sigma1 = inputs[exp]["parameters"]["C2_dog_sigma1"]
-C2_dog_sigma2 = inputs[exp]["parameters"]["C2_dog_sigma2"]
-C2_dog_thresh = inputs[exp]["parameters"]["C2_dog_thresh"]
-C2_min_area = inputs[exp]["parameters"]["C2_min_area"]
-C2_min_mean_int = inputs[exp]["parameters"]["C2_min_mean_int"]
-C2_min_mean_edt = inputs[exp]["parameters"]["C2_min_mean_edt"]
-plate_mapping = inputs[exp]["plate_mapping"]
-well_mapping = inputs[exp]["well_mapping"]
+ 
+if exp == "2025-03_mutants_norfloxacin": 
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 1
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+if exp == "2025-04_mutants_nitrofurantoin":
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 1
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+if exp == "2025-09_parental_yhjC":
+    lmax_dist = 4 
+    lmax_prom = 0.6
+    C2_dog_sigma1 = 1 
+    C2_dog_sigma2 = 8
+    C2_dog_thresh = 0.5 # changed parameter
+    C2_min_area = 32
+    C2_min_mean_int = 24
+    C2_min_mean_edt = 20
+    
 params = (C2_min_area, C2_min_mean_int, C2_min_mean_edt)
+
+#%% Mapping -------------------------------------------------------------------
+
+if exp == "2025-03_mutants_norfloxacin":
+
+    plate_mapping = {
+        
+        'p1_r1_2025-03-12_b2_control'          : 'control 0.1% DMSO',
+        'p2_r1_2025-03-12_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r1_2025-03-12_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r1_2025-03-12_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+            
+        'p1_r2_2025-03-13_b2_control'          : 'control 0.1% DMSO',
+        'p2_r2_2025-03-13_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r2_2025-03-13_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r2_2025-03-13_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+                
+        'p1_r3_2025-03-17_b2_control'          : 'control 0.1% DMSO',
+        'p2_r3_2025-03-17_b2_norfloxacin-0002' : 'norfloxacin 0.002 µg/ml',
+        'p3_r3_2025-03-17_b2_norfloxacin-0008' : 'norfloxacin 0.008 µg/ml',
+        'p4_r3_2025-03-17_b2_norfloxacin-0032' : 'norfloxacin 0.032 µg/ml',
+    
+        }
+    
+    well_mapping = {
+        
+        'A01': 'parental', 'A02': 'ΔfimH', 'A03': 'ΔmotA', 
+        'A04': 'ΔmotB'   , 'A05': 'ΔfliA', 'A06': 'ΔfliC',
+        'B01': 'ΔcsgA'   , 'B02': 'ΔcsgB', 'B03': 'Δkps' ,
+        'B04': 'Δneu'    , 'B05': 'Δgspl', 'B06': 'ΔyhjM',    
+        'C01': 'Δfiu'    , 'C02': 'ΔnikA', 'C03': 'Δyhjk', 
+        'C04': 'ΔsfaA'   , 'C05': 'ΔyeaP', 'C06': 'ΔyagX',
+        'D01': 'ΔluxS'   , 'D02': 'ΔcheA', 'D03': 'Δtsr' , 
+        'D04': 'ΔrfaQ'   , 'D05': 'ΔyaiW', 'D06': 'ΔompW',
+        
+        }
+    
+if exp == "2025-04_mutants_nitrofurantoin":
+
+    plate_mapping = {
+        
+        'p1_r1_2025-04-03_b2_control'             : 'control 0.1% DMSO',
+        'p2_r1_2025-04-03_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r1_2025-04-03_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r1_2025-04-03_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
+            
+        'p1_r2_2025-04-10_b2_control'             : 'control 0.1% DMSO',
+        'p2_r2_2025-04-10_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r2_2025-04-10_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r2_2025-04-10_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
+                
+        'p1_r3_2025-04-22_b2_control'             : 'control 0.1% DMSO',
+        'p2_r3_2025-04-22_b2_nitrofurantoin-0004' : 'nitrofurantoin 0.004 µg/ml',
+        'p3_r3_2025-04-22_b2_nitrofurantoin-0064' : 'nitrofurantoin 0.064 µg/ml',
+        'p4_r3_2025-04-22_b2_nitrofurantoin-1000' : 'nitrofurantoin 1.000 µg/ml',
+    
+        }
+
+    well_mapping = {
+        
+        'A01': 'parental', 'A02': 'ΔfimH', 'A03': 'ΔmotA', 
+        'A04': 'ΔmotB'   , 'A05': 'ΔfliA', 'A06': 'ΔfliC',
+        'B01': 'ΔcsgA'   , 'B02': 'ΔcsgB', 'B03': 'Δkps' ,
+        'B04': 'Δneu'    , 'B05': 'Δgspl', 'B06': 'ΔyhjM',    
+        'C01': 'Δfiu'    , 'C02': 'ΔnikA', 'C03': 'Δyhjk', 
+        'C04': 'ΔsfaA'   , 'C05': 'ΔyeaP', 'C06': 'ΔyagX',
+        'D01': 'ΔluxS'   , 'D02': 'ΔcheA', 'D03': 'Δtsr' , 
+        'D04': 'ΔrfaQ'   , 'D05': 'ΔyaiW', 'D06': 'ΔompW',
+        
+        }
+    
+if exp == "2025-09_parental_yhjC":
+    
+    plate_mapping = {
+        
+        'p1_r1_2025-09-01_b2_control' : 'control',
+        'p1_r2_2025-09-01_b2_control' : 'control',
+        'p1_r3_2025-09-01_b2_control' : 'control',
+
+        }
+    
+    well_mapping = {
+        
+        'B02': 'parental', 'B03': 'parental', 'B04': 'parental',
+        'C02': 'ΔyhjC'   , 'C03': 'ΔyhjC'   , 'C04': 'ΔyhjC'   ,
+        
+        }
 
 #%% Function : preprocess() ---------------------------------------------------
 
@@ -665,26 +765,26 @@ if __name__ == "__main__":
                 patch_overlap=patch_overlap,
                 )
         
-        if run_process:
-            process(
-                czi_path,
-                lmax_dist=lmax_dist,
-                lmax_prom=lmax_prom,
-                C2_dog_sigma1=C2_dog_sigma1,
-                C2_dog_sigma2=C2_dog_sigma2,
-                C2_dog_thresh=C2_dog_thresh,
-                C2_min_area=C2_min_area,
-                C2_min_mean_int=C2_min_mean_int,
-                C2_min_mean_edt=C2_min_mean_edt,
-                )
+    #     if run_process:
+    #         process(
+    #             czi_path,
+    #             lmax_dist=lmax_dist,
+    #             lmax_prom=lmax_prom,
+    #             C2_dog_sigma1=C2_dog_sigma1,
+    #             C2_dog_sigma2=C2_dog_sigma2,
+    #             C2_dog_thresh=C2_dog_thresh,
+    #             C2_min_area=C2_min_area,
+    #             C2_min_mean_int=C2_min_mean_int,
+    #             C2_min_mean_edt=C2_min_mean_edt,
+    #             )
             
-    if run_analyse:
-        analyse(data_path, params=params)
+    # if run_analyse:
+    #     analyse(data_path, params=params)
         
-    if run_plot:
-        plot(data_path, params=params, tag="")
-        plot(data_path, params=params, tag="_pNorm")
-        plot(data_path, params=params, tag="_mNorm")
+    # if run_plot:
+    #     plot(data_path, params=params, tag="")
+    #     plot(data_path, params=params, tag="_pNorm")
+    #     plot(data_path, params=params, tag="_mNorm")
         
-    if run_display:
-        display(czi_paths[display_idx], params=params)
+    # if run_display:
+    #     display(czi_paths[display_idx], params=params)
