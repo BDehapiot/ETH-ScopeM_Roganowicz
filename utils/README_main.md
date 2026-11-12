@@ -1,3 +1,34 @@
+## Method
+
+Multi-position, dual-channel Carl Zeiss Image (CZI) files were processed in 
+Python using the pylibCZIrw library (https://github.com/ZEISS/pylibczirw) to 
+extract individual scenes and parse associated metadata. To segment nuclei 
+(channel 1), a custom deep learning model with a ResNet18 backbone was built 
+in Keras/TensorFlow via the segmentation_models library 
+(https://github.com/qubvel/segmentation_models) and trained on 88 randomly 
+selected scenes manually annotated in Napari. Before training, ground-truth 
+nuclear masks were converted into normalized inward Euclidean Distance 
+Transforms (EDT), scaling pixel values from 0 at the nuclear edge to 1 at 
+the center. Consequently, the trained model generated probability maps that 
+peaked at the core of each nucleus. Local maxima detection was then applied 
+to locate these peaks as nuclear centroids, which served as seeds for a 
+watershed algorithm to accurately separate touching nuclei.
+Next, to isolate fluorescent objects (channel 2), raw images were processed 
+with a Difference of Gaussians (DoG) filter, subtracting a broad Gaussian blur 
+from a narrower one, to enhance spot-like structures while suppressing uneven 
+background illumination. After applying an intensity threshold to create a 
+binary mask, small noise artifacts below a set size limit were removed using 
+morphological filtering. For each remaining object, the algorithm measured its 
+pixel area, mean fluorescence intensity, and mean distance to the nearest 
+nucleus. This distance was obtained by computing an outward EDT from the 
+segmented nuclear masks, assigning each surrounding pixel its distance to the 
+closest nuclear boundary, and averaging those values across each object. 
+Objects were then excluded if they fell below a minimum area or mean intensity 
+threshold, or lay beyond a maximum allowable distance from a nucleus. Identical 
+processing and filtering parameters were applied across all experimental 
+conditions and subsequent measurments saved in CSV files. The code and training
+dataset are available at https://github.com/BDehapiot/ETH-ScopeM_Roganowicz.
+
 ## Usage
 
 <p align="left">

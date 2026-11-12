@@ -53,7 +53,7 @@ run_preprocess = 0
 run_process = 0
 run_analyse = 0
 run_plot = 0
-run_display = 0
+run_display = 1
 display_idx = 0
 
 # Parameters ------------------------------------------------------------------
